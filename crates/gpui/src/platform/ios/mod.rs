@@ -261,6 +261,18 @@ unsafe fn register_gpui_view_class() {
         spell_checking_type as extern "C" fn(&Object, Sel) -> isize,
     );
 
+    // iPadOS hover gesture (pointer support)
+    decl.add_method(
+        sel!(handleHover:),
+        handle_hover as extern "C" fn(&Object, Sel, *mut Object),
+    );
+
+    // Long-press gesture (simulates right-click for context menus)
+    decl.add_method(
+        sel!(handleLongPress:),
+        handle_long_press as extern "C" fn(&Object, Sel, *mut Object),
+    );
+
     // Hardware keyboard via UIPresses
     decl.add_method(
         sel!(pressesBegan:withEvent:),
@@ -394,12 +406,13 @@ extern "C" fn handle_touches_began(
         return;
     };
 
+    let modifiers = state.lock().current_modifiers;
     let result = dispatch_input(
         &state,
         PlatformInput::MouseDown(MouseDownEvent {
             button: MouseButton::Left,
             position,
-            modifiers: Modifiers::default(),
+            modifiers,
             click_count,
             first_mouse: false,
         }),
@@ -436,12 +449,13 @@ extern "C" fn handle_touches_moved(
         return;
     };
 
+    let modifiers = state.lock().current_modifiers;
     dispatch_input(
         &state,
         PlatformInput::MouseMove(MouseMoveEvent {
             position,
             pressed_button: Some(MouseButton::Left),
-            modifiers: Modifiers::default(),
+            modifiers,
         }),
     );
 }
@@ -460,15 +474,19 @@ extern "C" fn handle_touches_ended(
         return;
     };
 
-    // Clear tracked touch
-    state.lock().tracked_touch = None;
+    // Clear tracked touch and grab modifiers
+    let modifiers = {
+        let mut lock = state.lock();
+        lock.tracked_touch = None;
+        lock.current_modifiers
+    };
 
     dispatch_input(
         &state,
         PlatformInput::MouseUp(MouseUpEvent {
             button: MouseButton::Left,
             position,
-            modifiers: Modifiers::default(),
+            modifiers,
             click_count,
         }),
     );
@@ -484,21 +502,20 @@ extern "C" fn handle_touches_cancelled(
         return;
     };
 
-    // Use last known position or zero
-    let position = state
-        .lock()
-        .last_touch_position
-        .unwrap_or_else(Point::default);
-
-    // Clear tracked touch
-    state.lock().tracked_touch = None;
+    // Use last known position or zero, clear tracked touch, grab modifiers
+    let (position, modifiers) = {
+        let mut lock = state.lock();
+        let pos = lock.last_touch_position.unwrap_or_else(Point::default);
+        lock.tracked_touch = None;
+        (pos, lock.current_modifiers)
+    };
 
     dispatch_input(
         &state,
         PlatformInput::MouseUp(MouseUpEvent {
             button: MouseButton::Left,
             position,
-            modifiers: Modifiers::default(),
+            modifiers,
             click_count: 1,
         }),
     );
@@ -822,11 +839,11 @@ fn keycode_to_key_name(keycode: isize) -> Option<&'static str> {
 /// Extract Modifiers from UIKeyModifierFlags bitmask.
 fn modifiers_from_flags(flags: isize) -> Modifiers {
     Modifiers {
-        control: flags & 0x040000 != 0,
-        alt: flags & 0x080000 != 0,
-        shift: flags & 0x020000 != 0,
-        platform: flags & 0x100000 != 0,
-        function: false,
+        control: flags & 0x040000 != 0,  // UIKeyModifierControl
+        alt: flags & 0x080000 != 0,      // UIKeyModifierAlternate
+        shift: flags & 0x020000 != 0,    // UIKeyModifierShift
+        platform: flags & 0x100000 != 0, // UIKeyModifierCommand
+        function: flags & 0x800000 != 0, // UIKeyModifierNumericPad (fn key proxy)
     }
 }
 
@@ -856,6 +873,9 @@ extern "C" fn handle_presses_began(
             let keycode: isize = msg_send![key, keyCode];
             let modifier_flags: isize = msg_send![key, modifierFlags];
             let modifiers = modifiers_from_flags(modifier_flags);
+
+            // Update the live modifier state
+            state.lock().current_modifiers = modifiers;
 
             if is_modifier_key(keycode) {
                 dispatch_input(
@@ -941,6 +961,9 @@ extern "C" fn handle_presses_ended(
             let modifier_flags: isize = msg_send![key, modifierFlags];
             let modifiers = modifiers_from_flags(modifier_flags);
 
+            // Update the live modifier state
+            state.lock().current_modifiers = modifiers;
+
             if is_modifier_key(keycode) {
                 dispatch_input(
                     &state,
@@ -993,6 +1016,85 @@ extern "C" fn handle_presses_cancelled(
     handle_presses_ended(this, _sel, presses, event);
 }
 
+// ---------------------------------------------------------------------------
+// iPadOS hover gesture — fires MouseMove without a pressed button when the
+// user hovers a pointer (trackpad, mouse, Apple Pencil hover) over the view.
+// ---------------------------------------------------------------------------
+
+extern "C" fn handle_hover(this: &Object, _sel: Sel, gesture: *mut Object) {
+    let Some(state) = (unsafe { get_window_state(this) }) else {
+        return;
+    };
+    unsafe {
+        let gesture_state: isize = msg_send![gesture, state];
+        // UIGestureRecognizerState: 1=Began, 2=Changed, 3=Ended, 4=Cancelled
+        match gesture_state {
+            1 | 2 => {
+                let location: CGPoint =
+                    msg_send![gesture, locationInView: this as *const Object as *mut Object];
+                let position = point(px(location.x as f32), px(location.y as f32));
+                state.lock().last_touch_position = Some(position);
+
+                let modifiers = state.lock().current_modifiers;
+                dispatch_input(
+                    &state,
+                    PlatformInput::MouseMove(MouseMoveEvent {
+                        position,
+                        pressed_button: None,
+                        modifiers,
+                    }),
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Long-press gesture — simulates right-click (context menu) on iOS.
+// ---------------------------------------------------------------------------
+
+extern "C" fn handle_long_press(this: &Object, _sel: Sel, gesture: *mut Object) {
+    let Some(state) = (unsafe { get_window_state(this) }) else {
+        return;
+    };
+    unsafe {
+        let gesture_state: isize = msg_send![gesture, state];
+        let location: CGPoint =
+            msg_send![gesture, locationInView: this as *const Object as *mut Object];
+        let position = point(px(location.x as f32), px(location.y as f32));
+
+        let modifiers = state.lock().current_modifiers;
+        // UIGestureRecognizerState: 1=Began, 3=Ended, 4=Cancelled
+        match gesture_state {
+            1 => {
+                dispatch_input(
+                    &state,
+                    PlatformInput::MouseDown(MouseDownEvent {
+                        button: MouseButton::Right,
+                        position,
+                        modifiers,
+                        click_count: 1,
+                        first_mouse: false,
+                    }),
+                );
+            }
+            3 | 4 => {
+                dispatch_input(
+                    &state,
+                    PlatformInput::MouseUp(MouseUpEvent {
+                        button: MouseButton::Right,
+                        position,
+                        modifiers,
+                        click_count: 1,
+                    }),
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
 extern "C" fn handle_scroll_pan(this: &Object, _sel: Sel, gesture: *mut Object) {
     let Some(state) = (unsafe { get_window_state(this) }) else {
         return;
@@ -1021,12 +1123,13 @@ extern "C" fn handle_scroll_pan(this: &Object, _sel: Sel, gesture: *mut Object) 
             px(translation.y as f32),
         ));
 
+        let modifiers = state.lock().current_modifiers;
         dispatch_input(
             &state,
             PlatformInput::ScrollWheel(ScrollWheelEvent {
                 position,
                 delta,
-                modifiers: Modifiers::default(),
+                modifiers,
                 touch_phase,
             }),
         );
@@ -1065,12 +1168,13 @@ extern "C" fn handle_single_finger_pan(this: &Object, _sel: Sel, gesture: *mut O
             px(translation.y as f32),
         ));
 
+        let modifiers = state.lock().current_modifiers;
         dispatch_input(
             &state,
             PlatformInput::ScrollWheel(ScrollWheelEvent {
                 position,
                 delta,
-                modifiers: Modifiers::default(),
+                modifiers,
                 touch_phase,
             }),
         );
@@ -1117,12 +1221,13 @@ extern "C" fn handle_pinch(this: &Object, _sel: Sel, gesture: *mut Object) {
             msg_send![gesture, locationInView: this as *const Object as *mut Object];
         let center = point(px(location.x as f32), px(location.y as f32));
 
+        let modifiers = state.lock().current_modifiers;
         dispatch_input(
             &state,
             PlatformInput::Pinch(PinchEvent {
                 center,
                 scale: scale as f32,
-                modifiers: Modifiers::default(),
+                modifiers,
                 touch_phase,
             }),
         );
@@ -1154,12 +1259,13 @@ extern "C" fn handle_rotation(this: &Object, _sel: Sel, gesture: *mut Object) {
             msg_send![gesture, locationInView: this as *const Object as *mut Object];
         let center = point(px(location.x as f32), px(location.y as f32));
 
+        let modifiers = state.lock().current_modifiers;
         dispatch_input(
             &state,
             PlatformInput::Rotation(RotationEvent {
                 center,
                 rotation: rotation as f32,
-                modifiers: Modifiers::default(),
+                modifiers,
                 touch_phase,
             }),
         );
@@ -1865,6 +1971,7 @@ impl Platform for IosPlatform {
         &self,
         _options: PathPromptOptions,
     ) -> oneshot::Receiver<Result<Option<Vec<PathBuf>>>> {
+        log::warn!("prompt_for_paths not yet implemented on iOS");
         let (tx, rx) = oneshot::channel();
         let _ = tx.send(Ok(None));
         rx
@@ -1875,6 +1982,7 @@ impl Platform for IosPlatform {
         _directory: &Path,
         _suggested_name: Option<&str>,
     ) -> oneshot::Receiver<Result<Option<PathBuf>>> {
+        log::warn!("prompt_for_new_path not yet implemented on iOS");
         let (tx, rx) = oneshot::channel();
         let _ = tx.send(Ok(None));
         rx
@@ -2207,6 +2315,8 @@ struct IosWindowState {
     // Hardware keyboard dedup flag — when pressesBegan dispatches a key,
     // set this so insertText: skips the duplicate
     last_press_had_key: bool,
+    // Live modifier state from hardware keyboard presses
+    current_modifiers: Modifiers,
     // Scroll momentum after single-finger pan ends
     scroll_momentum: Option<ScrollMomentum>,
     // Safe area insets
@@ -2323,6 +2433,21 @@ impl IosWindow {
                 let _: () = msg_send![rotation, setDelegate: gesture_delegate];
                 let _: () = msg_send![ui_view, addGestureRecognizer: rotation];
 
+                // iPadOS hover gesture (pointer/trackpad/Apple Pencil hover)
+                let hover: *mut Object =
+                    msg_send![class!(UIHoverGestureRecognizer), alloc];
+                let hover: *mut Object =
+                    msg_send![hover, initWithTarget: ui_view action: sel!(handleHover:)];
+                let _: () = msg_send![ui_view, addGestureRecognizer: hover];
+
+                // Long-press gesture for simulated right-click (context menu)
+                let long_press: *mut Object =
+                    msg_send![class!(UILongPressGestureRecognizer), alloc];
+                let long_press: *mut Object =
+                    msg_send![long_press, initWithTarget: ui_view action: sel!(handleLongPress:)];
+                let _: () = msg_send![long_press, setDelegate: gesture_delegate];
+                let _: () = msg_send![ui_view, addGestureRecognizer: long_press];
+
                 let _: () = msg_send![ui_view_controller, setView: ui_view];
                 let _: () = msg_send![ui_window, setRootViewController: ui_view_controller];
                 let _: () = msg_send![ui_window, makeKeyAndVisible];
@@ -2397,6 +2522,7 @@ impl IosWindow {
             tracked_touch: None,
             last_touch_position: None,
             last_press_had_key: false,
+            current_modifiers: Modifiers::default(),
             scroll_momentum: None,
             safe_area_insets: UIEdgeInsets::default(),
             background_appearance: WindowBackgroundAppearance::Opaque,
@@ -2606,7 +2732,7 @@ impl PlatformWindow for IosWindow {
     }
 
     fn modifiers(&self) -> Modifiers {
-        Modifiers::default()
+        self.0.lock().current_modifiers
     }
 
     fn capslock(&self) -> crate::Capslock {
@@ -2765,6 +2891,7 @@ impl PlatformWindow for IosWindow {
                     let position = momentum.position;
                     let dt_sec = dt_ms / 1000.0;
 
+                    let modifiers = lock.current_modifiers;
                     if vx.abs() < 0.5 && vy.abs() < 0.5 {
                         // Momentum exhausted — send final event
                         lock.scroll_momentum = None;
@@ -2773,7 +2900,7 @@ impl PlatformWindow for IosWindow {
                             input_cb(PlatformInput::ScrollWheel(ScrollWheelEvent {
                                 position,
                                 delta: ScrollDelta::Pixels(point(px(0.0), px(0.0))),
-                                modifiers: Modifiers::default(),
+                                modifiers,
                                 touch_phase: TouchPhase::Ended,
                             }));
                             window_state.lock().on_input = Some(input_cb);
@@ -2786,7 +2913,7 @@ impl PlatformWindow for IosWindow {
                             input_cb(PlatformInput::ScrollWheel(ScrollWheelEvent {
                                 position,
                                 delta: ScrollDelta::Pixels(point(px(dx), px(dy))),
-                                modifiers: Modifiers::default(),
+                                modifiers,
                                 touch_phase: TouchPhase::Moved,
                             }));
                             window_state.lock().on_input = Some(input_cb);
