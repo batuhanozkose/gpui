@@ -56,7 +56,6 @@ mod view;
 mod window;
 
 #[cfg(any(test, feature = "test-support"))]
-#[cfg(any(test, feature = "test-support"))]
 pub use proptest;
 
 #[cfg(doc)]
@@ -92,7 +91,7 @@ pub use executor::*;
 pub use geometry::*;
 pub use global::*;
 pub use gpui_macros::{
-    AppContext, IntoElement, Render, VisualContext, register_action, test,
+    AppContext, IntoElement, Render, VisualContext, property_test, register_action, test,
 };
 pub use http_client;
 pub use input::*;

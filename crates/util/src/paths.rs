@@ -577,6 +577,7 @@ const ROW_COL_CAPTURE_REGEX: &str = r"(?xs)
         |
         \((\d+)\)()     # filename(row)
     )
+    \:*$
     |
     (.+?)(?:
         \:+(\d+)\:(\d+)\:*$  # filename:row:column
