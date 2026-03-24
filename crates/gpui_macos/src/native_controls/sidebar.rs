@@ -1,5 +1,4 @@
 use super::CALLBACK_IVAR;
-use dispatch2::DispatchQueue;
 use cocoa::{
     appkit::{
         NSEventModifierFlags, NSViewHeightSizable, NSViewWidthSizable, NSVisualEffectBlendingMode,
@@ -10,6 +9,7 @@ use cocoa::{
     foundation::{NSPoint, NSRect, NSSize},
 };
 use ctor::ctor;
+use dispatch2::DispatchQueue;
 use objc::{
     class,
     declare::ClassDecl,
@@ -1559,13 +1559,7 @@ pub(crate) unsafe fn embed_sidebar_surface_view(host_view: id, surface_view: id)
 /// CALayer background color and hides any NSVisualEffectView subviews so vibrancy
 /// does not paint over the solid color. The transparent GPUI Metal surface renders
 /// on top, so GPUI content is visible and transparent areas show the solid layer.
-pub(crate) unsafe fn set_sidebar_background_color(
-    host_view: id,
-    r: f64,
-    g: f64,
-    b: f64,
-    a: f64,
-) {
+pub(crate) unsafe fn set_sidebar_background_color(host_view: id, r: f64, g: f64, b: f64, a: f64) {
     unsafe {
         let Some(host_data) = host_data_mut(host_view) else {
             return;

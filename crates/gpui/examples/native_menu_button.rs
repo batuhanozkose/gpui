@@ -1,7 +1,7 @@
 use gpui::{
-    App, Bounds, Context, MenuItemSelectEvent, NativeMenuItem, Window,
-    WindowAppearance, WindowBounds, WindowOptions, div, native_context_menu, native_menu_button,
-    prelude::*, px, rgb, size,
+    App, Bounds, Context, MenuItemSelectEvent, NativeMenuItem, Window, WindowAppearance,
+    WindowBounds, WindowOptions, div, native_context_menu, native_menu_button, prelude::*, px, rgb,
+    size,
 };
 
 struct MenuExample {

@@ -57,8 +57,16 @@ impl Render for VisualEffectExample {
             window.appearance(),
             WindowAppearance::Dark | WindowAppearance::VibrantDark
         );
-        let fg = if is_dark { rgb(0xffffff) } else { rgb(0x1a1a1a) };
-        let muted = if is_dark { rgb(0x999999) } else { rgb(0x666666) };
+        let fg = if is_dark {
+            rgb(0xffffff)
+        } else {
+            rgb(0x1a1a1a)
+        };
+        let muted = if is_dark {
+            rgb(0x999999)
+        } else {
+            rgb(0x666666)
+        };
 
         let stripe_colors = [
             rgb(0xe74c3c),
@@ -68,7 +76,13 @@ impl Render for VisualEffectExample {
             rgb(0x3498db),
             rgb(0x9b59b6),
         ];
-        let mut bg_stripes = div().flex().flex_row().size_full().absolute().top_0().left_0();
+        let mut bg_stripes = div()
+            .flex()
+            .flex_row()
+            .size_full()
+            .absolute()
+            .top_0()
+            .left_0();
         for color in &stripe_colors {
             bg_stripes = bg_stripes.child(div().flex_1().h_full().bg(*color));
         }
@@ -162,50 +176,46 @@ impl Render for VisualEffectExample {
             );
         }
 
-        div()
-            .size_full()
-            .relative()
-            .child(bg_stripes)
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .size_full()
-                    .relative()
-                    .items_center()
-                    .gap_3()
-                    .pt_8()
-                    .child(
-                        div()
-                            .text_lg()
-                            .text_color(fg)
-                            .child("Native Materials & Liquid Glass"),
-                    )
-                    // Row 1: WithinWindow
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(muted)
-                            .child("WithinWindow — blurs content inside the window"),
-                    )
-                    .child(within_window_row)
-                    // Row 2: BehindWindow
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(muted)
-                            .child("BehindWindow — blurs desktop/apps behind the window"),
-                    )
-                    .child(behind_window_row)
-                    // Row 3: Liquid Glass
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(muted)
-                            .child("Liquid Glass (macOS 26+) — NSGlassEffectView"),
-                    )
-                    .child(glass_row),
-            )
+        div().size_full().relative().child(bg_stripes).child(
+            div()
+                .flex()
+                .flex_col()
+                .size_full()
+                .relative()
+                .items_center()
+                .gap_3()
+                .pt_8()
+                .child(
+                    div()
+                        .text_lg()
+                        .text_color(fg)
+                        .child("Native Materials & Liquid Glass"),
+                )
+                // Row 1: WithinWindow
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(muted)
+                        .child("WithinWindow — blurs content inside the window"),
+                )
+                .child(within_window_row)
+                // Row 2: BehindWindow
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(muted)
+                        .child("BehindWindow — blurs desktop/apps behind the window"),
+                )
+                .child(behind_window_row)
+                // Row 3: Liquid Glass
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(muted)
+                        .child("Liquid Glass (macOS 26+) — NSGlassEffectView"),
+                )
+                .child(glass_row),
+        )
     }
 }
 

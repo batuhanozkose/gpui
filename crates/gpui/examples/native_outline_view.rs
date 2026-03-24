@@ -1,7 +1,6 @@
 use gpui::{
-    App, Bounds, Context, NativeOutlineNode, OutlineRowSelectEvent, Window,
-    WindowAppearance, WindowBounds, WindowOptions, div, native_outline_view, prelude::*, px, rgb,
-    size,
+    App, Bounds, Context, NativeOutlineNode, OutlineRowSelectEvent, Window, WindowAppearance,
+    WindowBounds, WindowOptions, div, native_outline_view, prelude::*, px, rgb, size,
 };
 
 struct OutlineViewExample {

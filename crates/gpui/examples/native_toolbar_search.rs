@@ -5,21 +5,30 @@
 ///
 /// See `native_search_suggestions.rs` for a version with a suggestion dropdown panel.
 use gpui::{
-    App, Bounds, Context, NativeToolbar, NativeToolbarButton,
-    NativeToolbarClickEvent, NativeToolbarDisplayMode, NativeToolbarItem,
-    NativeToolbarSearchEvent, NativeToolbarSearchField, NativeToolbarSizeMode, Window,
-    WindowAppearance, WindowBounds, WindowOptions, div, prelude::*, px, rgb, size,
+    App, Bounds, Context, NativeToolbar, NativeToolbarButton, NativeToolbarClickEvent,
+    NativeToolbarDisplayMode, NativeToolbarItem, NativeToolbarSearchEvent,
+    NativeToolbarSearchField, NativeToolbarSizeMode, Window, WindowAppearance, WindowBounds,
+    WindowOptions, div, prelude::*, px, rgb, size,
 };
 
 const PAGES: &[(&str, &str)] = &[
     ("https://apple.com", "Apple"),
-    ("https://developer.apple.com/documentation", "Apple Developer Documentation"),
+    (
+        "https://developer.apple.com/documentation",
+        "Apple Developer Documentation",
+    ),
     ("https://github.com", "GitHub"),
-    ("https://github.com/nickel-org/nickel.rs", "Nickel.rs - Web Framework for Rust"),
+    (
+        "https://github.com/nickel-org/nickel.rs",
+        "Nickel.rs - Web Framework for Rust",
+    ),
     ("https://docs.rs", "Docs.rs"),
     ("https://crates.io", "crates.io: Rust Package Registry"),
     ("https://www.rust-lang.org", "Rust Programming Language"),
-    ("https://doc.rust-lang.org/book/", "The Rust Programming Language Book"),
+    (
+        "https://doc.rust-lang.org/book/",
+        "The Rust Programming Language Book",
+    ),
     ("https://zed.dev", "Zed - Code Editor"),
     ("https://gpui.rs", "GPUI - GPU-accelerated UI Framework"),
 ];
@@ -150,10 +159,8 @@ impl Render for BrowserExample {
                                         {
                                             this.navigate_to(&text);
                                         } else {
-                                            let url = format!(
-                                                "https://google.com/search?q={}",
-                                                text
-                                            );
+                                            let url =
+                                                format!("https://google.com/search?q={}", text);
                                             this.navigate_to(&url);
                                         }
                                         cx.notify();

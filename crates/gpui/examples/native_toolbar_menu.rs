@@ -34,7 +34,8 @@ impl Render for MenuToolbarExample {
                             "file_menu",
                             "File",
                             vec![
-                                NativeToolbarMenuItem::action("New Document").icon("doc.badge.plus"),
+                                NativeToolbarMenuItem::action("New Document")
+                                    .icon("doc.badge.plus"),
                                 NativeToolbarMenuItem::action("Open...").icon("folder"),
                                 NativeToolbarMenuItem::separator(),
                                 NativeToolbarMenuItem::action("Save").icon("square.and.arrow.down"),
@@ -69,14 +70,9 @@ impl Render for MenuToolbarExample {
                                     "Markdown",
                                     "Close",
                                 ];
-                                let name = names
-                                    .get(event.index)
-                                    .copied()
-                                    .unwrap_or("Unknown");
-                                this.last_action = format!(
-                                    "File menu: {} (index {})",
-                                    name, event.index
-                                );
+                                let name = names.get(event.index).copied().unwrap_or("Unknown");
+                                this.last_action =
+                                    format!("File menu: {} (index {})", name, event.index);
                                 this.selection_count += 1;
                                 cx.notify();
                             },
@@ -122,14 +118,9 @@ impl Render for MenuToolbarExample {
                                     "Medium",
                                     "Large",
                                 ];
-                                let name = names
-                                    .get(event.index)
-                                    .copied()
-                                    .unwrap_or("Unknown");
-                                this.last_action = format!(
-                                    "Settings menu: {} (index {})",
-                                    name, event.index
-                                );
+                                let name = names.get(event.index).copied().unwrap_or("Unknown");
+                                this.last_action =
+                                    format!("Settings menu: {} (index {})", name, event.index);
                                 this.selection_count += 1;
                                 cx.notify();
                             },
@@ -161,9 +152,10 @@ impl Render for MenuToolbarExample {
             .text_color(fg)
             .child(div().text_xl().child("NSMenuToolbarItem Demo"))
             .child(
-                div().text_sm().text_color(muted).child(
-                    "Toolbar buttons with dropdown menus (File and Settings above).",
-                ),
+                div()
+                    .text_sm()
+                    .text_color(muted)
+                    .child("Toolbar buttons with dropdown menus (File and Settings above)."),
             )
             .child(
                 div()

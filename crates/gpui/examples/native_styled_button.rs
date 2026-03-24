@@ -1,6 +1,6 @@
 use gpui::{
-    App, Bounds, Context, NativeButtonStyle, NativeButtonTint, Window,
-    WindowAppearance, WindowBounds, WindowOptions, div, native_button, prelude::*, px, rgb, size,
+    App, Bounds, Context, NativeButtonStyle, NativeButtonTint, Window, WindowAppearance,
+    WindowBounds, WindowOptions, div, native_button, prelude::*, px, rgb, size,
 };
 
 struct StyledButtonExample {

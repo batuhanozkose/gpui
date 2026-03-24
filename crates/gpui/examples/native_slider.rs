@@ -1,6 +1,6 @@
 use gpui::{
-    App, Bounds, Context, SliderChangeEvent, Window, WindowAppearance, WindowBounds,
-    WindowOptions, div, native_slider, prelude::*, px, rgb, size,
+    App, Bounds, Context, SliderChangeEvent, Window, WindowAppearance, WindowBounds, WindowOptions,
+    div, native_slider, prelude::*, px, rgb, size,
 };
 
 struct SliderExample {

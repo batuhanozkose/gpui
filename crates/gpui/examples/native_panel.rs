@@ -3,10 +3,10 @@
 /// Demonstrates NSPanel with different styles, levels, and materials.
 /// Shows borderless, HUD, utility, and titled panels with content items.
 use gpui::{
-    App, Bounds, Context, NativeColor, NativePanel, NativePanelAnchor,
-    NativePanelLevel, NativePanelMaterial, NativePanelStyle, NativePopoverClickableRow,
-    NativePopoverColorDot, NativePopoverContentItem, NativePopoverProgress, NativePopoverToggle,
-    Window, WindowBounds, WindowOptions, div, prelude::*, px, rgb, size,
+    App, Bounds, Context, NativeColor, NativePanel, NativePanelAnchor, NativePanelLevel,
+    NativePanelMaterial, NativePanelStyle, NativePopoverClickableRow, NativePopoverColorDot,
+    NativePopoverContentItem, NativePopoverProgress, NativePopoverToggle, Window, WindowBounds,
+    WindowOptions, div, prelude::*, px, rgb, size,
 };
 
 struct PanelExample {
@@ -41,7 +41,9 @@ impl PanelExample {
                     .on_click(|_, _| {}),
             )
             .item(NativePopoverContentItem::separator())
-            .item(NativePopoverContentItem::small_label("Press Esc to dismiss"));
+            .item(NativePopoverContentItem::small_label(
+                "Press Esc to dismiss",
+            ));
         window.show_native_panel(panel, NativePanelAnchor::Centered);
     }
 
@@ -128,10 +130,7 @@ impl PanelExample {
                     .detail("\u{21e7}\u{2318}N")
                     .on_click(|_, _| {}),
             );
-        window.show_native_panel(
-            panel,
-            NativePanelAnchor::Point { x: 100.0, y: 400.0 },
-        );
+        window.show_native_panel(panel, NativePanelAnchor::Point { x: 100.0, y: 400.0 });
     }
 
     fn dismiss_panel(&mut self, window: &mut Window, _cx: &mut Context<Self>) {
@@ -155,11 +154,7 @@ impl Render for PanelExample {
                     .text_xl()
                     .child("Native Panel Example"),
             )
-            .child(
-                div()
-                    .text_color(rgb(0xa6adc8))
-                    .child(self.status.clone()),
-            )
+            .child(div().text_color(rgb(0xa6adc8)).child(self.status.clone()))
             .child(
                 div()
                     .flex()

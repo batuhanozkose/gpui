@@ -64,22 +64,66 @@ unsafe fn cleanup_view_and_target(view: *mut c_void, target: *mut c_void) {
     cleanup_view_and_target_impl(view, target);
 }
 
-define_cleanup_with_target!(cleanup_checkbox, release_native_checkbox_target, release_native_checkbox);
-define_cleanup_with_target!(cleanup_switch, release_native_switch_target, release_native_switch);
-define_cleanup_with_target!(cleanup_slider, release_native_slider_target, release_native_slider);
-define_cleanup_with_target!(cleanup_stepper, release_native_stepper_target, release_native_stepper);
+define_cleanup_with_target!(
+    cleanup_checkbox,
+    release_native_checkbox_target,
+    release_native_checkbox
+);
+define_cleanup_with_target!(
+    cleanup_switch,
+    release_native_switch_target,
+    release_native_switch
+);
+define_cleanup_with_target!(
+    cleanup_slider,
+    release_native_slider_target,
+    release_native_slider
+);
+define_cleanup_with_target!(
+    cleanup_stepper,
+    release_native_stepper_target,
+    release_native_stepper
+);
 define_cleanup_with_target!(
     cleanup_segmented_control,
     release_native_segmented_target,
     release_native_segmented_control
 );
-define_cleanup_with_target!(cleanup_popup_button, release_native_popup_target, release_native_popup_button);
-define_cleanup_with_target!(cleanup_search_field, release_native_text_field_delegate, release_native_search_field);
-define_cleanup_with_target!(cleanup_text_field, release_native_text_field_delegate, release_native_text_field);
-define_cleanup_with_target!(cleanup_combo_box, release_native_combo_box_delegate, release_native_combo_box);
-define_cleanup_with_target!(cleanup_tab_view, release_native_tab_view_target, release_native_tab_view);
-define_cleanup_with_target!(cleanup_table_view, release_native_table_target, release_native_table_view);
-define_cleanup_with_target!(cleanup_outline_view, release_native_outline_target, release_native_outline_view);
+define_cleanup_with_target!(
+    cleanup_popup_button,
+    release_native_popup_target,
+    release_native_popup_button
+);
+define_cleanup_with_target!(
+    cleanup_search_field,
+    release_native_text_field_delegate,
+    release_native_search_field
+);
+define_cleanup_with_target!(
+    cleanup_text_field,
+    release_native_text_field_delegate,
+    release_native_text_field
+);
+define_cleanup_with_target!(
+    cleanup_combo_box,
+    release_native_combo_box_delegate,
+    release_native_combo_box
+);
+define_cleanup_with_target!(
+    cleanup_tab_view,
+    release_native_tab_view_target,
+    release_native_tab_view
+);
+define_cleanup_with_target!(
+    cleanup_table_view,
+    release_native_table_target,
+    release_native_table_view
+);
+define_cleanup_with_target!(
+    cleanup_outline_view,
+    release_native_outline_target,
+    release_native_outline_view
+);
 define_cleanup_with_target!(
     cleanup_collection_view,
     release_native_collection_target,
@@ -90,11 +134,22 @@ define_cleanup_with_target!(
     release_native_menu_button_target,
     release_native_menu_button
 );
-define_cleanup_with_target!(cleanup_tracking_view, release_native_tracking_view_target, release_native_tracking_view);
-define_cleanup_with_target!(cleanup_sidebar, release_sidebar_target, release_sidebar_view);
+define_cleanup_with_target!(
+    cleanup_tracking_view,
+    release_native_tracking_view_target,
+    release_native_tracking_view
+);
+define_cleanup_with_target!(
+    cleanup_sidebar,
+    release_sidebar_target,
+    release_sidebar_view
+);
 define_cleanup_view_only!(cleanup_progress, release_native_progress_indicator);
 define_cleanup_view_only!(cleanup_image_view, release_native_image_view);
-define_cleanup_view_only!(cleanup_visual_effect_view, release_native_visual_effect_view);
+define_cleanup_view_only!(
+    cleanup_visual_effect_view,
+    release_native_visual_effect_view
+);
 define_cleanup_view_only!(cleanup_glass_effect_view, release_native_glass_effect_view);
 define_cleanup_view_only!(cleanup_stack_view, release_native_stack_view);
 
@@ -525,11 +580,8 @@ impl PlatformNativeControls for MacNativeControls {
                 } else {
                     std::ptr::null_mut()
                 };
-                *state = NativeControlState::new(
-                    view as *mut c_void,
-                    target,
-                    cleanup_segmented_control,
-                );
+                *state =
+                    NativeControlState::new(view as *mut c_void, target, cleanup_segmented_control);
                 ensure_attached(state, parent, bounds, scale);
             }
         }
@@ -566,8 +618,7 @@ impl PlatformNativeControls for MacNativeControls {
                 } else {
                     std::ptr::null_mut()
                 };
-                *state =
-                    NativeControlState::new(view as *mut c_void, target, cleanup_popup_button);
+                *state = NativeControlState::new(view as *mut c_void, target, cleanup_popup_button);
                 ensure_attached(state, parent, bounds, scale);
             }
         }
@@ -737,8 +788,7 @@ impl PlatformNativeControls for MacNativeControls {
                     view,
                     into_native_text_field_callbacks(config.callbacks),
                 );
-                *state =
-                    NativeControlState::new(view as *mut c_void, delegate, cleanup_text_field);
+                *state = NativeControlState::new(view as *mut c_void, delegate, cleanup_text_field);
                 ensure_attached(state, parent, bounds, scale);
             }
         }
@@ -788,8 +838,7 @@ impl PlatformNativeControls for MacNativeControls {
                     view,
                     into_native_combo_box_callbacks(config.callbacks),
                 );
-                *state =
-                    NativeControlState::new(view as *mut c_void, delegate, cleanup_combo_box);
+                *state = NativeControlState::new(view as *mut c_void, delegate, cleanup_combo_box);
                 ensure_attached(state, parent, bounds, scale);
             }
         }
@@ -995,11 +1044,7 @@ impl PlatformNativeControls for MacNativeControls {
                     config.multiple_selection,
                 );
                 native_controls::set_native_table_show_header(view, config.show_header);
-                *state = NativeControlState::new(
-                    view as *mut c_void,
-                    target,
-                    cleanup_table_view,
-                );
+                *state = NativeControlState::new(view as *mut c_void, target, cleanup_table_view);
                 ensure_attached(state, parent, bounds, scale);
             }
         }
@@ -1051,11 +1096,7 @@ impl PlatformNativeControls for MacNativeControls {
                 if let Some(row_height) = config.row_height {
                     native_controls::set_native_outline_row_height(view, row_height);
                 }
-                *state = NativeControlState::new(
-                    view as *mut c_void,
-                    target,
-                    cleanup_outline_view,
-                );
+                *state = NativeControlState::new(view as *mut c_void, target, cleanup_outline_view);
                 ensure_attached(state, parent, bounds, scale);
             }
         }
@@ -1105,11 +1146,8 @@ impl PlatformNativeControls for MacNativeControls {
                     convert_collection_item_style(config.item_style),
                     config.on_select,
                 );
-                *state = NativeControlState::new(
-                    view as *mut c_void,
-                    target,
-                    cleanup_collection_view,
-                );
+                *state =
+                    NativeControlState::new(view as *mut c_void, target, cleanup_collection_view);
                 ensure_attached(state, parent, bounds, scale);
             }
         }
@@ -1150,8 +1188,7 @@ impl PlatformNativeControls for MacNativeControls {
                     config.on_select,
                 );
                 native_controls::set_native_control_enabled(view, config.enabled);
-                *state =
-                    NativeControlState::new(view as *mut c_void, target, cleanup_menu_button);
+                *state = NativeControlState::new(view as *mut c_void, target, cleanup_menu_button);
                 ensure_attached(state, parent, bounds, scale);
             }
         }
@@ -1360,10 +1397,7 @@ impl PlatformNativeControls for MacNativeControls {
                     );
                 }
                 if let Some(on_header_button) = config.on_header_button {
-                    native_controls::update_sidebar_header_callback(
-                        view,
-                        Some(on_header_button),
-                    );
+                    native_controls::update_sidebar_header_callback(view, Some(on_header_button));
                 }
                 if let Some((r, g, b, a)) = config.background_color {
                     native_controls::set_sidebar_background_color(view, r, g, b, a);
@@ -1404,21 +1438,14 @@ impl PlatformNativeControls for MacNativeControls {
                     );
                 }
                 if let Some(on_header_button) = config.on_header_button {
-                    native_controls::update_sidebar_header_callback(
-                        view,
-                        Some(on_header_button),
-                    );
+                    native_controls::update_sidebar_header_callback(view, Some(on_header_button));
                 }
                 if let Some((r, g, b, a)) = config.background_color {
                     native_controls::set_sidebar_background_color(view, r, g, b, a);
                 } else {
                     native_controls::clear_sidebar_background_color(view);
                 }
-                *state = NativeControlState::new(
-                    view as *mut c_void,
-                    target,
-                    cleanup_sidebar,
-                );
+                *state = NativeControlState::new(view as *mut c_void, target, cleanup_sidebar);
             }
         }
     }
@@ -1594,7 +1621,6 @@ impl PlatformNativeControls for MacNativeControls {
     fn dismiss_popover(&self, state: &NativeControlState) {
         unsafe { native_controls::dismiss_native_popover(state.view() as id) }
     }
-
 }
 
 fn cleanup_panel_impl(view: *mut c_void, delegate: *mut c_void) {

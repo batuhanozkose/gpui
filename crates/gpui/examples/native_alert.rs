@@ -3,8 +3,8 @@
 /// Demonstrates NSAlert presented as a sheet (non-blocking) with different styles
 /// (warning, informational, critical) and multiple buttons.
 use gpui::{
-    App, Bounds, Context, NativeAlert, NativeAlertStyle, Window, WindowBounds,
-    WindowOptions, div, prelude::*, px, rgb, size,
+    App, Bounds, Context, NativeAlert, NativeAlertStyle, Window, WindowBounds, WindowOptions, div,
+    prelude::*, px, rgb, size,
 };
 
 struct AlertExample {
@@ -18,7 +18,13 @@ impl AlertExample {
         }
     }
 
-    fn show_alert(&mut self, alert: NativeAlert, labels: &'static [&'static str], window: &mut Window, cx: &mut Context<Self>) {
+    fn show_alert(
+        &mut self,
+        alert: NativeAlert,
+        labels: &'static [&'static str],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if let Some(rx) = window.show_native_alert(alert) {
             cx.spawn(async move |this, cx| {
                 if let Ok(button_index) = rx.await {

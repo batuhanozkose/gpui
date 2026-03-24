@@ -1,9 +1,9 @@
 use gpui::{
-    App, Bounds, Context, NativePopover, NativePopoverAnchor,
-    NativePopoverBehavior, NativePopoverCloseEvent, NativePopoverContentItem,
-    NativePopoverShowEvent, NativeToolbar, NativeToolbarButton, NativeToolbarClickEvent,
-    NativeToolbarDisplayMode, NativeToolbarItem, NativeToolbarSizeMode, Window,
-    WindowAppearance, WindowBounds, WindowOptions, div, prelude::*, px, rgb, size,
+    App, Bounds, Context, NativePopover, NativePopoverAnchor, NativePopoverBehavior,
+    NativePopoverCloseEvent, NativePopoverContentItem, NativePopoverShowEvent, NativeToolbar,
+    NativeToolbarButton, NativeToolbarClickEvent, NativeToolbarDisplayMode, NativeToolbarItem,
+    NativeToolbarSizeMode, Window, WindowAppearance, WindowBounds, WindowOptions, div, prelude::*,
+    px, rgb, size,
 };
 
 struct ToolbarPopoverExample {
@@ -14,32 +14,26 @@ struct ToolbarPopoverExample {
 }
 
 impl ToolbarPopoverExample {
-    fn show_info_popover(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    fn show_info_popover(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         window.show_native_popover(
             NativePopover::new(280.0, 180.0)
                 .behavior(NativePopoverBehavior::Transient)
-                .on_show(cx.listener(
-                    |this, _event: &NativePopoverShowEvent, _window, cx| {
+                .on_show(
+                    cx.listener(|this, _event: &NativePopoverShowEvent, _window, cx| {
                         this.popover_visible = true;
                         this.popover_show_count += 1;
-                        this.status_message = format!(
-                            "Info popover shown (#{}).",
-                            this.popover_show_count
-                        );
+                        this.status_message =
+                            format!("Info popover shown (#{}).", this.popover_show_count);
                         cx.notify();
-                    },
-                ))
-                .on_close(cx.listener(
-                    |this, _event: &NativePopoverCloseEvent, _window, cx| {
+                    }),
+                )
+                .on_close(
+                    cx.listener(|this, _event: &NativePopoverCloseEvent, _window, cx| {
                         this.popover_visible = false;
                         this.status_message = "Info popover closed.".to_string();
                         cx.notify();
-                    },
-                ))
+                    }),
+                )
                 .item(NativePopoverContentItem::heading("Application Info"))
                 .item(NativePopoverContentItem::separator())
                 .item(NativePopoverContentItem::label("GPUI Native Popover Demo"))
@@ -55,32 +49,26 @@ impl ToolbarPopoverExample {
         );
     }
 
-    fn show_branch_popover(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    fn show_branch_popover(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         window.show_native_popover(
             NativePopover::new(340.0, 440.0)
                 .behavior(NativePopoverBehavior::Transient)
-                .on_show(cx.listener(
-                    |this, _event: &NativePopoverShowEvent, _window, cx| {
+                .on_show(
+                    cx.listener(|this, _event: &NativePopoverShowEvent, _window, cx| {
                         this.popover_visible = true;
                         this.popover_show_count += 1;
-                        this.status_message = format!(
-                            "Branch popover shown (#{}).",
-                            this.popover_show_count
-                        );
+                        this.status_message =
+                            format!("Branch popover shown (#{}).", this.popover_show_count);
                         cx.notify();
-                    },
-                ))
-                .on_close(cx.listener(
-                    |this, _event: &NativePopoverCloseEvent, _window, cx| {
+                    }),
+                )
+                .on_close(
+                    cx.listener(|this, _event: &NativePopoverCloseEvent, _window, cx| {
                         this.popover_visible = false;
                         this.status_message = "Branch popover closed.".to_string();
                         cx.notify();
-                    },
-                ))
+                    }),
+                )
                 .item(NativePopoverContentItem::heading("Current Branch"))
                 .item(NativePopoverContentItem::icon_label(
                     "arrow.triangle.branch",
@@ -114,10 +102,7 @@ impl ToolbarPopoverExample {
                 ))
                 .item(NativePopoverContentItem::separator())
                 .item(NativePopoverContentItem::heading("Remote Branches"))
-                .item(NativePopoverContentItem::icon_label(
-                    "globe",
-                    "origin/main",
-                ))
+                .item(NativePopoverContentItem::icon_label("globe", "origin/main"))
                 .item(NativePopoverContentItem::small_label(
                     "Merge PR #142 \u{2022} 5 hours ago",
                 ))
@@ -145,21 +130,17 @@ impl ToolbarPopoverExample {
         );
     }
 
-    fn show_settings_popover(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    fn show_settings_popover(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         window.show_native_popover(
             NativePopover::new(300.0, 200.0)
                 .behavior(NativePopoverBehavior::Semitransient)
-                .on_close(cx.listener(
-                    |this, _event: &NativePopoverCloseEvent, _window, cx| {
+                .on_close(
+                    cx.listener(|this, _event: &NativePopoverCloseEvent, _window, cx| {
                         this.popover_visible = false;
                         this.status_message = "Settings popover closed.".to_string();
                         cx.notify();
-                    },
-                ))
+                    }),
+                )
                 .item(NativePopoverContentItem::heading("Settings"))
                 .item(NativePopoverContentItem::separator())
                 .item(NativePopoverContentItem::button(
@@ -182,10 +163,7 @@ impl ToolbarPopoverExample {
         );
         self.popover_visible = true;
         self.popover_show_count += 1;
-        self.status_message = format!(
-            "Settings popover shown (#{}).",
-            self.popover_show_count
-        );
+        self.status_message = format!("Settings popover shown (#{}).", self.popover_show_count);
     }
 
     fn toggle_popover(
@@ -218,11 +196,7 @@ impl Render for ToolbarPopoverExample {
                             .tool_tip("Show info popover")
                             .on_click(cx.listener(
                                 |this, _event: &NativeToolbarClickEvent, window, cx| {
-                                    this.toggle_popover(
-                                        Self::show_info_popover,
-                                        window,
-                                        cx,
-                                    );
+                                    this.toggle_popover(Self::show_info_popover, window, cx);
                                 },
                             )),
                     ))
@@ -231,11 +205,7 @@ impl Render for ToolbarPopoverExample {
                             .tool_tip("Show branch switcher")
                             .on_click(cx.listener(
                                 |this, _event: &NativeToolbarClickEvent, window, cx| {
-                                    this.toggle_popover(
-                                        Self::show_branch_popover,
-                                        window,
-                                        cx,
-                                    );
+                                    this.toggle_popover(Self::show_branch_popover, window, cx);
                                 },
                             )),
                     ))
@@ -245,11 +215,7 @@ impl Render for ToolbarPopoverExample {
                             .tool_tip("Show settings popover")
                             .on_click(cx.listener(
                                 |this, _event: &NativeToolbarClickEvent, window, cx| {
-                                    this.toggle_popover(
-                                        Self::show_settings_popover,
-                                        window,
-                                        cx,
-                                    );
+                                    this.toggle_popover(Self::show_settings_popover, window, cx);
                                 },
                             )),
                     )),

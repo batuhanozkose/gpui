@@ -48,7 +48,10 @@ impl Render for SidebarExample {
                 native_sidebar("sidebar", &Self::ITEMS)
                     .header_title("Navigation")
                     .header_button(NativeSidebarHeaderButton::new("add", "plus"))
-                    .header_button(NativeSidebarHeaderButton::new("filter", "line.3.horizontal.decrease"))
+                    .header_button(NativeSidebarHeaderButton::new(
+                        "filter",
+                        "line.3.horizontal.decrease",
+                    ))
                     .on_header_click(|event, _window, _cx| {
                         println!(
                             "Header button clicked: id={}, index={}",

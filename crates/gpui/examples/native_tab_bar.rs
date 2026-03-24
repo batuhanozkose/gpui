@@ -1,10 +1,9 @@
 use gpui::{
-    actions, App, Bounds, Context, Entity, FocusHandle, Focusable, KeyBinding, Menu,
-    MenuItem, MouseButton, NativeMenuItem, NativeVisualEffectBlendingMode,
-    NativeVisualEffectMaterial, SharedString, Subscription, TitlebarOptions, WeakEntity, Window,
-    WindowAppearance, WindowBounds, WindowOptions, div, native_image_view, native_sidebar,
-    native_tracking_view, native_visual_effect_view, prelude::*, px, rgb, show_native_popup_menu,
-    size,
+    App, Bounds, Context, Entity, FocusHandle, Focusable, KeyBinding, Menu, MenuItem, MouseButton,
+    NativeMenuItem, NativeVisualEffectBlendingMode, NativeVisualEffectMaterial, SharedString,
+    Subscription, TitlebarOptions, WeakEntity, Window, WindowAppearance, WindowBounds,
+    WindowOptions, actions, div, native_image_view, native_sidebar, native_tracking_view,
+    native_visual_effect_view, prelude::*, px, rgb, show_native_popup_menu, size,
 };
 
 // ---------------------------------------------------------------------------
@@ -13,7 +12,14 @@ use gpui::{
 
 actions!(
     tab_bar_example,
-    [NewTab, CloseTab, NextTab, PreviousTab, ToggleSidebar, ReopenClosedTab]
+    [
+        NewTab,
+        CloseTab,
+        NextTab,
+        PreviousTab,
+        ToggleSidebar,
+        ReopenClosedTab
+    ]
 );
 
 // ---------------------------------------------------------------------------
@@ -53,9 +59,18 @@ impl TabBarExample {
         let focus_handle = cx.focus_handle();
         Self {
             tabs: vec![
-                TabInfo { title: "Home".into(), icon: "house.fill" },
-                TabInfo { title: "Documents".into(), icon: "doc.text.fill" },
-                TabInfo { title: "Settings".into(), icon: "gearshape.fill" },
+                TabInfo {
+                    title: "Home".into(),
+                    icon: "house.fill",
+                },
+                TabInfo {
+                    title: "Documents".into(),
+                    icon: "doc.text.fill",
+                },
+                TabInfo {
+                    title: "Settings".into(),
+                    icon: "gearshape.fill",
+                },
             ],
             selected: 0,
             hovered: None,
@@ -180,11 +195,31 @@ impl TabColors {
             WindowAppearance::Dark | WindowAppearance::VibrantDark
         );
         Self {
-            fg: if is_dark { rgb(0xffffff) } else { rgb(0x1a1a1a) },
-            muted: if is_dark { rgb(0x999999) } else { rgb(0x666666) },
-            selected_bg: if is_dark { rgb(0x444444) } else { rgb(0xdddddd) },
-            hover_bg: if is_dark { rgb(0x383838) } else { rgb(0xe8e8e8) },
-            close_hover_bg: if is_dark { rgb(0x555555) } else { rgb(0xcccccc) },
+            fg: if is_dark {
+                rgb(0xffffff)
+            } else {
+                rgb(0x1a1a1a)
+            },
+            muted: if is_dark {
+                rgb(0x999999)
+            } else {
+                rgb(0x666666)
+            },
+            selected_bg: if is_dark {
+                rgb(0x444444)
+            } else {
+                rgb(0xdddddd)
+            },
+            hover_bg: if is_dark {
+                rgb(0x383838)
+            } else {
+                rgb(0xe8e8e8)
+            },
+            close_hover_bg: if is_dark {
+                rgb(0x555555)
+            } else {
+                rgb(0xcccccc)
+            },
             is_dark,
         }
     }
@@ -362,11 +397,7 @@ fn render_sidebar_tab_item(
         .on_click(move |_event, window, cx| {
             on_select(window, cx);
         })
-        .child(
-            div()
-                .text_xs()
-                .child(icon_char.to_string()),
-        )
+        .child(div().text_xs().child(icon_char.to_string()))
         .child(
             div()
                 .flex_grow()
@@ -390,12 +421,7 @@ fn render_sidebar_tab_item(
                     .on_click(move |_event, window, cx| {
                         on_close(window, cx);
                     })
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(close_fg)
-                            .child("\u{2715}"),
-                    ),
+                    .child(div().text_xs().text_color(close_fg).child("\u{2715}")),
             )
         })
 }
@@ -488,22 +514,45 @@ impl TabBarExample {
                 is_close_hovered,
                 colors,
                 move |_window, cx| {
-                    w1.update(cx, |this, cx| { this.selected = idx; cx.notify(); }).ok();
+                    w1.update(cx, |this, cx| {
+                        this.selected = idx;
+                        cx.notify();
+                    })
+                    .ok();
                 },
                 move |_window, cx| {
-                    w2.update(cx, |this, cx| { this.close_tab(idx, cx); }).ok();
+                    w2.update(cx, |this, cx| {
+                        this.close_tab(idx, cx);
+                    })
+                    .ok();
                 },
                 move |_window, cx| {
-                    w3.update(cx, |this, cx| { this.hovered = Some(idx); cx.notify(); }).ok();
+                    w3.update(cx, |this, cx| {
+                        this.hovered = Some(idx);
+                        cx.notify();
+                    })
+                    .ok();
                 },
                 move |_window, cx| {
-                    w4.update(cx, |this, cx| { this.hovered = None; cx.notify(); }).ok();
+                    w4.update(cx, |this, cx| {
+                        this.hovered = None;
+                        cx.notify();
+                    })
+                    .ok();
                 },
                 move |_window, cx| {
-                    w5.update(cx, |this, cx| { this.close_hovered = Some(idx); cx.notify(); }).ok();
+                    w5.update(cx, |this, cx| {
+                        this.close_hovered = Some(idx);
+                        cx.notify();
+                    })
+                    .ok();
                 },
                 move |_window, cx| {
-                    w6.update(cx, |this, cx| { this.close_hovered = None; cx.notify(); }).ok();
+                    w6.update(cx, |this, cx| {
+                        this.close_hovered = None;
+                        cx.notify();
+                    })
+                    .ok();
                 },
             )
             .on_mouse_down(MouseButton::Right, move |event, window, cx| {
@@ -545,7 +594,11 @@ impl TabBarExample {
                 .cursor_pointer()
                 .hover(|style| style.bg(colors.hover_bg))
                 .on_click(move |_event, _window, cx| {
-                    w_add.update(cx, |this, cx| { this.add_tab(cx); }).ok();
+                    w_add
+                        .update(cx, |this, cx| {
+                            this.add_tab(cx);
+                        })
+                        .ok();
                 })
                 .child(
                     native_image_view("add-tab-icon")
@@ -566,13 +619,10 @@ impl TabBarExample {
             .w_full()
             .h(px(38.0))
             .child(
-                native_visual_effect_view(
-                    "tab-bar-bg",
-                    NativeVisualEffectMaterial::HeaderView,
-                )
-                .blending_mode(NativeVisualEffectBlendingMode::WithinWindow)
-                .w_full()
-                .h(px(38.0)),
+                native_visual_effect_view("tab-bar-bg", NativeVisualEffectMaterial::HeaderView)
+                    .blending_mode(NativeVisualEffectBlendingMode::WithinWindow)
+                    .w_full()
+                    .h(px(38.0)),
             )
             .child(tab_items.h(px(38.0)))
     }
@@ -633,11 +683,7 @@ struct SidebarTabPanel {
 }
 
 impl SidebarTabPanel {
-    fn bind_main_view(
-        &mut self,
-        main_view: WeakEntity<TabBarExample>,
-        cx: &mut Context<Self>,
-    ) {
+    fn bind_main_view(&mut self, main_view: WeakEntity<TabBarExample>, cx: &mut Context<Self>) {
         if let Some(entity) = main_view.upgrade() {
             let subscription = cx.observe(&entity, |_this, _entity, cx| {
                 cx.notify();
@@ -694,10 +740,17 @@ impl Render for SidebarTabPanel {
                 is_close_hovered,
                 &colors,
                 move |_window, cx| {
-                    wm1.update(cx, |this, cx| { this.selected = idx; cx.notify(); }).ok();
+                    wm1.update(cx, |this, cx| {
+                        this.selected = idx;
+                        cx.notify();
+                    })
+                    .ok();
                 },
                 move |_window, cx| {
-                    wm2.update(cx, |this, cx| { this.close_tab(idx, cx); }).ok();
+                    wm2.update(cx, |this, cx| {
+                        this.close_tab(idx, cx);
+                    })
+                    .ok();
                 },
             )
             .on_mouse_move(move |_event, _window, cx| {
@@ -706,7 +759,8 @@ impl Render for SidebarTabPanel {
                         this.hovered = Some(idx);
                         cx.notify();
                     }
-                }).ok();
+                })
+                .ok();
             })
             .on_mouse_down(MouseButton::Right, move |event, window, cx| {
                 let menu_items = build_tab_context_menu(tab_count);
@@ -748,14 +802,13 @@ impl Render for SidebarTabPanel {
                 .cursor_pointer()
                 .hover(|style| style.bg(colors.hover_bg))
                 .on_click(move |_event, _window, cx| {
-                    wm_add.update(cx, |this, cx| { this.add_tab(cx); }).ok();
+                    wm_add
+                        .update(cx, |this, cx| {
+                            this.add_tab(cx);
+                        })
+                        .ok();
                 })
-                .child(
-                    div()
-                        .text_sm()
-                        .text_color(colors.muted)
-                        .child("+"),
-                ),
+                .child(div().text_sm().text_color(colors.muted).child("+")),
         );
 
         div()
@@ -835,9 +888,7 @@ fn main() {
                     _subscriptions: Vec::new(),
                 });
 
-                let main_view = cx.new(|cx| {
-                    TabBarExample::new(sidebar_panel.clone(), cx)
-                });
+                let main_view = cx.new(|cx| TabBarExample::new(sidebar_panel.clone(), cx));
 
                 sidebar_panel.update(cx, |panel, cx| {
                     panel.bind_main_view(main_view.downgrade(), cx);

@@ -1,6 +1,6 @@
 use gpui::{
-    App, Bounds, Context, Entity, FocusHandle, Focusable, KeyBinding, Menu,
-    MenuItem, MenuItemSelectEvent, NativeButtonStyle, NativeButtonTint, NativeMenuItem,
+    App, Bounds, Context, Entity, FocusHandle, Focusable, KeyBinding, Menu, MenuItem,
+    MenuItemSelectEvent, NativeButtonStyle, NativeButtonTint, NativeMenuItem,
     NativeOutlineHighlight, NativeOutlineNode, NativeSegmentedStyle, OutlineRowSelectEvent,
     SegmentSelectEvent, TextChangeEvent, TextSubmitEvent, Window, WindowAppearance, WindowBounds,
     WindowOptions, actions, div, native_button, native_icon_button, native_menu_button,
@@ -114,10 +114,7 @@ impl SidebarContent {
                     NativeOutlineNode::leaf("docs/NATIVE_CONTROLS.md  [A]"),
                 ],
             ),
-            NativeOutlineNode::branch(
-                "Conflicts",
-                vec![NativeOutlineNode::leaf("README.md  [C]")],
-            ),
+            NativeOutlineNode::branch("Conflicts", vec![NativeOutlineNode::leaf("README.md  [C]")]),
         ]
     }
 
@@ -290,8 +287,7 @@ impl Render for SidebarContent {
                             .segment_style(NativeSegmentedStyle::Automatic)
                             .on_select(cx.listener(|this, ev: &SegmentSelectEvent, _, cx| {
                                 this.active_panel = ev.index;
-                                this.status_text =
-                                    format!("{}", Panel::ALL[ev.index].label());
+                                this.status_text = format!("{}", Panel::ALL[ev.index].label());
                                 cx.notify();
                             })),
                     ),
@@ -313,9 +309,9 @@ impl SidebarContent {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         match Panel::ALL[self.active_panel] {
-            Panel::SourceControl => {
-                self.render_source_control(muted, border, cx).into_any_element()
-            }
+            Panel::SourceControl => self
+                .render_source_control(muted, border, cx)
+                .into_any_element(),
             Panel::Explorer => self.render_explorer(muted, cx).into_any_element(),
             Panel::Search => self.render_search(muted, cx).into_any_element(),
             Panel::Branches => self.render_branches(muted, cx).into_any_element(),
@@ -373,8 +369,7 @@ impl SidebarContent {
                             .segment_style(NativeSegmentedStyle::RoundRect)
                             .on_select(cx.listener(|this, ev: &SegmentSelectEvent, _, cx| {
                                 this.view_mode = ev.index;
-                                this.status_text =
-                                    format!("View: {}", Self::VIEW_MODES[ev.index]);
+                                this.status_text = format!("View: {}", Self::VIEW_MODES[ev.index]);
                                 cx.notify();
                             })),
                     )
@@ -384,8 +379,7 @@ impl SidebarContent {
                             .segment_style(NativeSegmentedStyle::RoundRect)
                             .on_select(cx.listener(|this, ev: &SegmentSelectEvent, _, cx| {
                                 this.sort_mode = ev.index;
-                                this.status_text =
-                                    format!("Sort: {}", Self::SORT_MODES[ev.index]);
+                                this.status_text = format!("Sort: {}", Self::SORT_MODES[ev.index]);
                                 cx.notify();
                             })),
                     ),
@@ -494,34 +488,31 @@ impl SidebarContent {
                             )
                             .child(div().flex_grow())
                             .child(
-                                native_menu_button("sc_commit", "Commit", &commit_menu)
-                                    .on_select(cx.listener(
-                                        |this, ev: &MenuItemSelectEvent, _, cx| {
-                                            match ev.index {
-                                                0 => {
-                                                    if !this.commit_message.is_empty() {
-                                                        this.status_text = format!(
-                                                            "Committed: \"{}\"",
-                                                            this.commit_message
-                                                        );
-                                                        this.commit_message.clear();
-                                                    } else {
-                                                        this.status_text =
-                                                            "Message is empty!".into();
-                                                    }
-                                                }
-                                                1 => {
-                                                    this.status_text =
-                                                        "Commit & Push...".into();
-                                                }
-                                                _ => {
-                                                    this.status_text =
-                                                        format!("Commit action #{}", ev.index);
+                                native_menu_button("sc_commit", "Commit", &commit_menu).on_select(
+                                    cx.listener(|this, ev: &MenuItemSelectEvent, _, cx| {
+                                        match ev.index {
+                                            0 => {
+                                                if !this.commit_message.is_empty() {
+                                                    this.status_text = format!(
+                                                        "Committed: \"{}\"",
+                                                        this.commit_message
+                                                    );
+                                                    this.commit_message.clear();
+                                                } else {
+                                                    this.status_text = "Message is empty!".into();
                                                 }
                                             }
-                                            cx.notify();
-                                        },
-                                    )),
+                                            1 => {
+                                                this.status_text = "Commit & Push...".into();
+                                            }
+                                            _ => {
+                                                this.status_text =
+                                                    format!("Commit action #{}", ev.index);
+                                            }
+                                        }
+                                        cx.notify();
+                                    }),
+                                ),
                             ),
                     ),
             )
@@ -541,11 +532,7 @@ impl SidebarContent {
 
     // ── Explorer ──
 
-    fn render_explorer(
-        &mut self,
-        muted: gpui::Rgba,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render_explorer(&mut self, muted: gpui::Rgba, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_col()
@@ -585,11 +572,7 @@ impl SidebarContent {
 
     // ── Search ──
 
-    fn render_search(
-        &mut self,
-        muted: gpui::Rgba,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render_search(&mut self, muted: gpui::Rgba, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_col()
@@ -651,11 +634,7 @@ impl SidebarContent {
 
     // ── Branches ──
 
-    fn render_branches(
-        &mut self,
-        muted: gpui::Rgba,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render_branches(&mut self, muted: gpui::Rgba, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_col()
@@ -704,11 +683,7 @@ impl SidebarContent {
 
     // ── Stashes ──
 
-    fn render_stashes(
-        &mut self,
-        muted: gpui::Rgba,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render_stashes(&mut self, muted: gpui::Rgba, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_col()
@@ -773,11 +748,7 @@ impl SidebarContent {
 
     // ── Settings ──
 
-    fn render_settings(
-        &mut self,
-        muted: gpui::Rgba,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render_settings(&mut self, muted: gpui::Rgba, cx: &mut Context<Self>) -> impl IntoElement {
         let menu = vec![
             NativeMenuItem::action("Open Settings File"),
             NativeMenuItem::action("Open Keybindings"),

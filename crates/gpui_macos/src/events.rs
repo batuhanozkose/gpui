@@ -212,19 +212,16 @@ pub(crate) unsafe fn platform_input_from_native(
                 };
 
                 match navigation_direction {
-                    Some(direction) => {
-                        mouse_position(native_event, native_view, window_height).map(
-                            |position| {
-                                PlatformInput::MouseDown(MouseDownEvent {
-                                    button: MouseButton::Navigate(direction),
-                                    position,
-                                    modifiers: read_modifiers(native_event),
-                                    click_count: 1,
-                                    first_mouse: false,
-                                })
-                            },
-                        )
-                    }
+                    Some(direction) => mouse_position(native_event, native_view, window_height)
+                        .map(|position| {
+                            PlatformInput::MouseDown(MouseDownEvent {
+                                button: MouseButton::Navigate(direction),
+                                position,
+                                modifiers: read_modifiers(native_event),
+                                click_count: 1,
+                                first_mouse: false,
+                            })
+                        }),
                     _ => None,
                 }
             }
@@ -246,11 +243,12 @@ pub(crate) unsafe fn platform_input_from_native(
                     })
                 })
             }
-            NSEventType::NSScrollWheel => {
-                mouse_position(native_event, native_view, window_height).map(|position| {
+            NSEventType::NSScrollWheel => mouse_position(native_event, native_view, window_height)
+                .map(|position| {
                     let phase = match native_event.phase() {
-                        NSEventPhase::NSEventPhaseMayBegin
-                        | NSEventPhase::NSEventPhaseBegan => TouchPhase::Started,
+                        NSEventPhase::NSEventPhaseMayBegin | NSEventPhase::NSEventPhaseBegan => {
+                            TouchPhase::Started
+                        }
                         NSEventPhase::NSEventPhaseEnded => TouchPhase::Ended,
                         _ => TouchPhase::Moved,
                     };
@@ -272,8 +270,7 @@ pub(crate) unsafe fn platform_input_from_native(
                         touch_phase: phase,
                         modifiers: read_modifiers(native_event),
                     })
-                })
-            }
+                }),
             NSEventType::NSLeftMouseDragged
             | NSEventType::NSRightMouseDragged
             | NSEventType::NSOtherMouseDragged => {
@@ -295,24 +292,22 @@ pub(crate) unsafe fn platform_input_from_native(
                     })
                 })
             }
-            NSEventType::NSMouseMoved => {
-                mouse_position(native_event, native_view, window_height).map(|position| {
+            NSEventType::NSMouseMoved => mouse_position(native_event, native_view, window_height)
+                .map(|position| {
                     PlatformInput::MouseMove(MouseMoveEvent {
                         position,
                         pressed_button: None,
                         modifiers: read_modifiers(native_event),
                     })
-                })
-            }
-            NSEventType::NSMouseExited => {
-                mouse_position(native_event, native_view, window_height).map(|position| {
+                }),
+            NSEventType::NSMouseExited => mouse_position(native_event, native_view, window_height)
+                .map(|position| {
                     PlatformInput::MouseExited(MouseExitEvent {
                         position,
                         pressed_button: None,
                         modifiers: read_modifiers(native_event),
                     })
-                })
-            }
+                }),
             _ => None,
         }
     }

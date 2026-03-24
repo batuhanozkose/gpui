@@ -1,6 +1,6 @@
 use gpui::{
-    App, Bounds, Context, NativeImageSymbolWeight, Window, WindowAppearance,
-    WindowBounds, WindowOptions, div, native_image_view, prelude::*, px, rgb, size,
+    App, Bounds, Context, NativeImageSymbolWeight, Window, WindowAppearance, WindowBounds,
+    WindowOptions, div, native_image_view, prelude::*, px, rgb, size,
 };
 
 struct ImageViewExample;
@@ -11,8 +11,16 @@ impl Render for ImageViewExample {
             window.appearance(),
             WindowAppearance::Dark | WindowAppearance::VibrantDark
         );
-        let fg = if is_dark { rgb(0xffffff) } else { rgb(0x1a1a1a) };
-        let muted = if is_dark { rgb(0x999999) } else { rgb(0x666666) };
+        let fg = if is_dark {
+            rgb(0xffffff)
+        } else {
+            rgb(0x1a1a1a)
+        };
+        let muted = if is_dark {
+            rgb(0x999999)
+        } else {
+            rgb(0x666666)
+        };
 
         let symbols = [
             ("globe", 0.0, 0.478, 1.0),

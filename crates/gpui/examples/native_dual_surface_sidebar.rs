@@ -1,20 +1,17 @@
 use gpui::{
-    App, Bounds, Context, Entity, FocusHandle, Focusable, KeyBinding, Menu,
-    MenuItem, NativeButtonStyle, NativeButtonTint, NativeSegmentedStyle, OutlineRowSelectEvent,
-    SegmentSelectEvent, TextChangeEvent, TextSubmitEvent, Window, WindowAppearance,
-    WindowBounds, WindowOptions, actions, div, native_button, native_icon_button,
-    native_outline_view, native_sidebar, native_text_field, native_toggle_group, prelude::*, px,
-    rgb, size, NativeOutlineNode, NativeOutlineHighlight,
+    App, Bounds, Context, Entity, FocusHandle, Focusable, KeyBinding, Menu, MenuItem,
+    NativeButtonStyle, NativeButtonTint, NativeOutlineHighlight, NativeOutlineNode,
+    NativeSegmentedStyle, OutlineRowSelectEvent, SegmentSelectEvent, TextChangeEvent,
+    TextSubmitEvent, Window, WindowAppearance, WindowBounds, WindowOptions, actions, div,
+    native_button, native_icon_button, native_outline_view, native_sidebar, native_text_field,
+    native_toggle_group, prelude::*, px, rgb, size,
 };
 
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
 
-actions!(
-    dual_surface_example,
-    [ToggleSidebar]
-);
+actions!(dual_surface_example, [ToggleSidebar]);
 
 // ---------------------------------------------------------------------------
 // Sidebar panel — rendered in the secondary GpuiSurface
@@ -147,11 +144,7 @@ impl Render for SidebarPanel {
 }
 
 impl SidebarPanel {
-    fn render_explorer(
-        &mut self,
-        muted: gpui::Rgba,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render_explorer(&mut self, muted: gpui::Rgba, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_col()
@@ -188,11 +181,7 @@ impl SidebarPanel {
             )
     }
 
-    fn render_search(
-        &mut self,
-        muted: gpui::Rgba,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render_search(&mut self, muted: gpui::Rgba, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_col()
@@ -223,18 +212,9 @@ impl SidebarPanel {
                     .flex()
                     .items_center()
                     .gap_2()
-                    .child(
-                        native_icon_button("sb_case", "textformat")
-                            .tooltip("Match Case"),
-                    )
-                    .child(
-                        native_icon_button("sb_word", "textformat.abc")
-                            .tooltip("Whole Word"),
-                    )
-                    .child(
-                        native_icon_button("sb_regex", "number")
-                            .tooltip("Use Regex"),
-                    ),
+                    .child(native_icon_button("sb_case", "textformat").tooltip("Match Case"))
+                    .child(native_icon_button("sb_word", "textformat.abc").tooltip("Whole Word"))
+                    .child(native_icon_button("sb_regex", "number").tooltip("Use Regex")),
             )
             .child(
                 div()
@@ -271,9 +251,7 @@ impl SidebarPanel {
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child("Source Control"),
                     )
-                    .child(
-                        div().text_xs().text_color(muted).child("main"),
-                    ),
+                    .child(div().text_xs().text_color(muted).child("main")),
             )
             .child(
                 div()
@@ -285,10 +263,7 @@ impl SidebarPanel {
                             .button_style(NativeButtonStyle::Filled)
                             .tint(NativeButtonTint::Accent),
                     )
-                    .child(
-                        native_icon_button("sb_refresh", "arrow.clockwise")
-                            .tooltip("Refresh"),
-                    ),
+                    .child(native_icon_button("sb_refresh", "arrow.clockwise").tooltip("Refresh")),
             )
             .child(div().h(px(1.0)).w_full().bg(border))
             .child(
@@ -309,10 +284,7 @@ impl SidebarPanel {
                     .placeholder("Commit message...")
                     .w_full(),
             )
-            .child(
-                native_button("sb_commit", "Commit")
-                    .button_style(NativeButtonStyle::Rounded),
-            )
+            .child(native_button("sb_commit", "Commit").button_style(NativeButtonStyle::Rounded))
     }
 }
 
@@ -411,18 +383,12 @@ impl Render for DualSurfaceExample {
                                     .font_weight(gpui::FontWeight::BOLD)
                                     .child(Self::EDITOR_TABS[self.editor_tab]),
                             )
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .text_color(muted)
-                                    .child("This content is rendered in the main GPUI surface (detail pane)."),
-                            )
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .text_color(muted)
-                                    .child("The sidebar has its own independent Metal rendering surface."),
-                            )
+                            .child(div().text_sm().text_color(muted).child(
+                                "This content is rendered in the main GPUI surface (detail pane).",
+                            ))
+                            .child(div().text_sm().text_color(muted).child(
+                                "The sidebar has its own independent Metal rendering surface.",
+                            ))
                             .child(div().h(px(1.0)).w_full().bg(border))
                             .child(self.render_mock_editor(muted, border)),
                     )
@@ -434,23 +400,16 @@ impl Render for DualSurfaceExample {
                             .h(px(24.0))
                             .px_3()
                             .bg(border)
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(muted)
-                                    .child("Dual Surface Mode — Sidebar + Detail both render via GPUI"),
-                            ),
+                            .child(div().text_xs().text_color(muted).child(
+                                "Dual Surface Mode — Sidebar + Detail both render via GPUI",
+                            )),
                     ),
             )
     }
 }
 
 impl DualSurfaceExample {
-    fn render_mock_editor(
-        &self,
-        muted: gpui::Rgba,
-        border: gpui::Rgba,
-    ) -> impl IntoElement {
+    fn render_mock_editor(&self, muted: gpui::Rgba, border: gpui::Rgba) -> impl IntoElement {
         let lines = match self.editor_tab {
             0 => vec![
                 "pub struct Window {",
@@ -503,12 +462,7 @@ impl DualSurfaceExample {
                             .text_right()
                             .child(format!("{}", i + 1)),
                     )
-                    .child(
-                        div()
-                            .text_xs()
-                            .font_family("Menlo")
-                            .child(line.to_string()),
-                    )
+                    .child(div().text_xs().font_family("Menlo").child(line.to_string()))
             }))
     }
 }

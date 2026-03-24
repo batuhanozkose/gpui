@@ -1,6 +1,6 @@
 use gpui::{
-    App, Bounds, Context, TabSelectEvent, Window, WindowAppearance, WindowBounds,
-    WindowOptions, div, native_tab_view, prelude::*, px, rgb, size,
+    App, Bounds, Context, TabSelectEvent, Window, WindowAppearance, WindowBounds, WindowOptions,
+    div, native_tab_view, prelude::*, px, rgb, size,
 };
 
 struct TabViewExample {

@@ -1,6 +1,6 @@
 use gpui::{
-    App, Bounds, Context, SwitchChangeEvent, Window, WindowAppearance, WindowBounds,
-    WindowOptions, div, native_switch, prelude::*, px, rgb, size,
+    App, Bounds, Context, SwitchChangeEvent, Window, WindowAppearance, WindowBounds, WindowOptions,
+    div, native_switch, prelude::*, px, rgb, size,
 };
 
 struct SwitchExample {

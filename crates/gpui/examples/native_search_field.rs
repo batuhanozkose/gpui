@@ -1,7 +1,6 @@
 use gpui::{
-    App, Bounds, Context, SearchChangeEvent, SearchSubmitEvent, Window,
-    WindowAppearance, WindowBounds, WindowOptions, div, native_search_field, prelude::*, px, rgb,
-    size,
+    App, Bounds, Context, SearchChangeEvent, SearchSubmitEvent, Window, WindowAppearance,
+    WindowBounds, WindowOptions, div, native_search_field, prelude::*, px, rgb, size,
 };
 
 struct SearchFieldExample {

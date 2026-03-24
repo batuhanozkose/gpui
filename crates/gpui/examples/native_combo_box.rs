@@ -1,7 +1,6 @@
 use gpui::{
-    App, Bounds, ComboBoxChangeEvent, ComboBoxSelectEvent, Context, Window,
-    WindowAppearance, WindowBounds, WindowOptions, div, native_combo_box, prelude::*, px, rgb,
-    size,
+    App, Bounds, ComboBoxChangeEvent, ComboBoxSelectEvent, Context, Window, WindowAppearance,
+    WindowBounds, WindowOptions, div, native_combo_box, prelude::*, px, rgb, size,
 };
 
 struct ComboBoxExample {

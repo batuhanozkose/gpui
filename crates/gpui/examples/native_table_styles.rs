@@ -1,8 +1,8 @@
 use gpui::{
-    App, Bounds, CheckboxChangeEvent, Context, DropdownSelectEvent,
-    NativeTableGridMask, NativeTableRowSizeStyle, NativeTableSelectionHighlightStyle,
-    NativeTableStyle, TableRowSelectEvent, Window, WindowAppearance, WindowBounds, WindowOptions,
-    div, native_checkbox, native_dropdown, native_table_view, prelude::*, px, rgb, size,
+    App, Bounds, CheckboxChangeEvent, Context, DropdownSelectEvent, NativeTableGridMask,
+    NativeTableRowSizeStyle, NativeTableSelectionHighlightStyle, NativeTableStyle,
+    TableRowSelectEvent, Window, WindowAppearance, WindowBounds, WindowOptions, div,
+    native_checkbox, native_dropdown, native_table_view, prelude::*, px, rgb, size,
 };
 
 struct TableStylesExample {

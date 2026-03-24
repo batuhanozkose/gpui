@@ -1,7 +1,7 @@
 use gpui::{
-    App, Bounds, Context, NativeSegmentedShape, NativeSegmentedSize,
-    SegmentSelectEvent, Window, WindowAppearance, WindowBounds, WindowOptions, div,
-    native_toggle_group, prelude::*, px, rgb, size,
+    App, Bounds, Context, NativeSegmentedShape, NativeSegmentedSize, SegmentSelectEvent, Window,
+    WindowAppearance, WindowBounds, WindowOptions, div, native_toggle_group, prelude::*, px, rgb,
+    size,
 };
 
 struct ToggleGroupExample {
@@ -18,12 +18,7 @@ impl ToggleGroupExample {
     const SHAPE_NAMES: [&str; 4] = ["Automatic", "Capsule", "RoundedRect", "Circle"];
     const SIZE_NAMES: [&str; 5] = ["Mini", "Small", "Regular", "Large", "ExtraLarge"];
     const NAV_LABELS: [&str; 4] = ["Files", "Git", "Debug", "Settings"];
-    const NAV_ICONS: [&str; 4] = [
-        "folder",
-        "arrow.triangle.branch",
-        "ant",
-        "gearshape",
-    ];
+    const NAV_ICONS: [&str; 4] = ["folder", "arrow.triangle.branch", "ant", "gearshape"];
 }
 
 impl Render for ToggleGroupExample {
@@ -81,59 +76,41 @@ impl Render for ToggleGroupExample {
                 Self::SIZE_NAMES[self.size_index],
             ))
             // SF Symbols navigation (icon-only segments)
-            .child(
-                div()
-                    .flex()
-                    .gap_3()
-                    .items_center()
-                    .child("Nav:")
-                    .child({
-                        let mut group =
-                            native_toggle_group("nav_icons", &Self::NAV_LABELS)
-                                .sf_symbols(&Self::NAV_ICONS)
-                                .on_select(cx.listener(|this, event: &SegmentSelectEvent, _, cx| {
-                                    this.nav_selection = Some(event.index);
-                                    cx.notify();
-                                }));
-                        if let Some(index) = self.nav_selection {
-                            group = group.selected_index(index);
-                        }
-                        group
-                    }),
-            )
+            .child(div().flex().gap_3().items_center().child("Nav:").child({
+                let mut group = native_toggle_group("nav_icons", &Self::NAV_LABELS)
+                    .sf_symbols(&Self::NAV_ICONS)
+                    .on_select(cx.listener(|this, event: &SegmentSelectEvent, _, cx| {
+                        this.nav_selection = Some(event.index);
+                        cx.notify();
+                    }));
+                if let Some(index) = self.nav_selection {
+                    group = group.selected_index(index);
+                }
+                group
+            }))
             // View mode — uses the dynamic shape/size from pickers
             .child(
-                div()
-                    .flex()
-                    .gap_3()
-                    .items_center()
-                    .child("View:")
-                    .child(
-                        native_toggle_group("view_mode", &Self::VIEW_MODES)
-                            .selected_index(self.view_mode)
-                            .border_shape(border_shape)
-                            .control_size(control_size)
-                            .on_select(cx.listener(|this, event: &SegmentSelectEvent, _, cx| {
-                                this.view_mode = event.index;
-                                cx.notify();
-                            })),
-                    ),
+                div().flex().gap_3().items_center().child("View:").child(
+                    native_toggle_group("view_mode", &Self::VIEW_MODES)
+                        .selected_index(self.view_mode)
+                        .border_shape(border_shape)
+                        .control_size(control_size)
+                        .on_select(cx.listener(|this, event: &SegmentSelectEvent, _, cx| {
+                            this.view_mode = event.index;
+                            cx.notify();
+                        })),
+                ),
             )
             // Sort order
             .child(
-                div()
-                    .flex()
-                    .gap_3()
-                    .items_center()
-                    .child("Sort:")
-                    .child(
-                        native_toggle_group("sort_order", &Self::SORT_ORDERS)
-                            .selected_index(self.sort_order)
-                            .on_select(cx.listener(|this, event: &SegmentSelectEvent, _, cx| {
-                                this.sort_order = event.index;
-                                cx.notify();
-                            })),
-                    ),
+                div().flex().gap_3().items_center().child("Sort:").child(
+                    native_toggle_group("sort_order", &Self::SORT_ORDERS)
+                        .selected_index(self.sort_order)
+                        .on_select(cx.listener(|this, event: &SegmentSelectEvent, _, cx| {
+                            this.sort_order = event.index;
+                            cx.notify();
+                        })),
+                ),
             )
             // Shape picker
             .child(
@@ -141,12 +118,7 @@ impl Render for ToggleGroupExample {
                     .flex()
                     .gap_3()
                     .items_center()
-                    .child(
-                        div()
-                            .text_color(muted)
-                            .text_sm()
-                            .child("Shape:"),
-                    )
+                    .child(div().text_color(muted).text_sm().child("Shape:"))
                     .child(
                         native_toggle_group("shape_selector", &Self::SHAPE_NAMES)
                             .selected_index(self.shape_index)
@@ -162,12 +134,7 @@ impl Render for ToggleGroupExample {
                     .flex()
                     .gap_3()
                     .items_center()
-                    .child(
-                        div()
-                            .text_color(muted)
-                            .text_sm()
-                            .child("Size:"),
-                    )
+                    .child(div().text_color(muted).text_sm().child("Size:"))
                     .child(
                         native_toggle_group("size_selector", &Self::SIZE_NAMES)
                             .selected_index(self.size_index)

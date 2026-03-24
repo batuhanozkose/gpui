@@ -9,11 +9,11 @@
 /// - Adaptive dark/light appearance
 /// - SF Symbol icons per category
 use gpui::{
-    App, Bounds, Context, NativePanel, NativePanelAnchor, NativePanelLevel,
-    NativePanelMaterial, NativePanelStyle, NativePopoverClickableRow, NativePopoverContentItem,
-    NativeToolbar, NativeToolbarButton, NativeToolbarClickEvent, NativeToolbarDisplayMode,
-    NativeToolbarItem, NativeToolbarSearchEvent, NativeToolbarSearchField, NativeToolbarSizeMode,
-    Window, WindowAppearance, WindowBounds, WindowOptions, div, prelude::*, px, rgb, size,
+    App, Bounds, Context, NativePanel, NativePanelAnchor, NativePanelLevel, NativePanelMaterial,
+    NativePanelStyle, NativePopoverClickableRow, NativePopoverContentItem, NativeToolbar,
+    NativeToolbarButton, NativeToolbarClickEvent, NativeToolbarDisplayMode, NativeToolbarItem,
+    NativeToolbarSearchEvent, NativeToolbarSearchField, NativeToolbarSizeMode, Window,
+    WindowAppearance, WindowBounds, WindowOptions, div, prelude::*, px, rgb, size,
 };
 
 // ── Suggestion data ─────────────────────────────────────────────────────────
@@ -35,19 +35,97 @@ enum Category {
 }
 
 const SUGGESTIONS: &[Suggestion] = &[
-    Suggestion { icon: "star.fill", title: "GitHub", detail: Some("github.com"), url: "https://github.com", category: Category::Bookmark },
-    Suggestion { icon: "star.fill", title: "Stack Overflow", detail: Some("stackoverflow.com"), url: "https://stackoverflow.com", category: Category::Bookmark },
-    Suggestion { icon: "star.fill", title: "Rust Docs", detail: Some("doc.rust-lang.org"), url: "https://doc.rust-lang.org", category: Category::Bookmark },
-    Suggestion { icon: "star.fill", title: "crates.io", detail: Some("crates.io"), url: "https://crates.io", category: Category::Bookmark },
-    Suggestion { icon: "star.fill", title: "Apple Developer", detail: Some("developer.apple.com"), url: "https://developer.apple.com", category: Category::Bookmark },
-    Suggestion { icon: "clock", title: "Rust async/await tutorial", detail: Some("blog.rust-lang.org"), url: "https://blog.rust-lang.org/async-await", category: Category::History },
-    Suggestion { icon: "clock", title: "NSPanel documentation", detail: Some("developer.apple.com"), url: "https://developer.apple.com/documentation/appkit/nspanel", category: Category::History },
-    Suggestion { icon: "clock", title: "GPUI framework", detail: Some("gpui.rs"), url: "https://gpui.rs", category: Category::History },
-    Suggestion { icon: "clock", title: "Zed editor", detail: Some("zed.dev"), url: "https://zed.dev", category: Category::History },
-    Suggestion { icon: "clock", title: "Tauri app framework", detail: Some("tauri.app"), url: "https://tauri.app", category: Category::History },
-    Suggestion { icon: "globe", title: "Rust Programming Language", detail: Some("rust-lang.org"), url: "https://www.rust-lang.org", category: Category::TopHit },
-    Suggestion { icon: "globe", title: "The Rust Book", detail: Some("doc.rust-lang.org/book"), url: "https://doc.rust-lang.org/book/", category: Category::TopHit },
-    Suggestion { icon: "globe", title: "Docs.rs", detail: Some("docs.rs"), url: "https://docs.rs", category: Category::TopHit },
+    Suggestion {
+        icon: "star.fill",
+        title: "GitHub",
+        detail: Some("github.com"),
+        url: "https://github.com",
+        category: Category::Bookmark,
+    },
+    Suggestion {
+        icon: "star.fill",
+        title: "Stack Overflow",
+        detail: Some("stackoverflow.com"),
+        url: "https://stackoverflow.com",
+        category: Category::Bookmark,
+    },
+    Suggestion {
+        icon: "star.fill",
+        title: "Rust Docs",
+        detail: Some("doc.rust-lang.org"),
+        url: "https://doc.rust-lang.org",
+        category: Category::Bookmark,
+    },
+    Suggestion {
+        icon: "star.fill",
+        title: "crates.io",
+        detail: Some("crates.io"),
+        url: "https://crates.io",
+        category: Category::Bookmark,
+    },
+    Suggestion {
+        icon: "star.fill",
+        title: "Apple Developer",
+        detail: Some("developer.apple.com"),
+        url: "https://developer.apple.com",
+        category: Category::Bookmark,
+    },
+    Suggestion {
+        icon: "clock",
+        title: "Rust async/await tutorial",
+        detail: Some("blog.rust-lang.org"),
+        url: "https://blog.rust-lang.org/async-await",
+        category: Category::History,
+    },
+    Suggestion {
+        icon: "clock",
+        title: "NSPanel documentation",
+        detail: Some("developer.apple.com"),
+        url: "https://developer.apple.com/documentation/appkit/nspanel",
+        category: Category::History,
+    },
+    Suggestion {
+        icon: "clock",
+        title: "GPUI framework",
+        detail: Some("gpui.rs"),
+        url: "https://gpui.rs",
+        category: Category::History,
+    },
+    Suggestion {
+        icon: "clock",
+        title: "Zed editor",
+        detail: Some("zed.dev"),
+        url: "https://zed.dev",
+        category: Category::History,
+    },
+    Suggestion {
+        icon: "clock",
+        title: "Tauri app framework",
+        detail: Some("tauri.app"),
+        url: "https://tauri.app",
+        category: Category::History,
+    },
+    Suggestion {
+        icon: "globe",
+        title: "Rust Programming Language",
+        detail: Some("rust-lang.org"),
+        url: "https://www.rust-lang.org",
+        category: Category::TopHit,
+    },
+    Suggestion {
+        icon: "globe",
+        title: "The Rust Book",
+        detail: Some("doc.rust-lang.org/book"),
+        url: "https://doc.rust-lang.org/book/",
+        category: Category::TopHit,
+    },
+    Suggestion {
+        icon: "globe",
+        title: "Docs.rs",
+        detail: Some("docs.rs"),
+        url: "https://docs.rs",
+        category: Category::TopHit,
+    },
 ];
 
 fn filter_suggestions(query: &str) -> Vec<Suggestion> {
@@ -72,9 +150,18 @@ fn filter_suggestions(query: &str) -> Vec<Suggestion> {
 fn count_rows(query: &str) -> usize {
     let matches = filter_suggestions(query);
     let mut count = 0;
-    count += matches.iter().filter(|s| s.category == Category::TopHit).count();
-    count += matches.iter().filter(|s| s.category == Category::Bookmark).count();
-    count += matches.iter().filter(|s| s.category == Category::History).count();
+    count += matches
+        .iter()
+        .filter(|s| s.category == Category::TopHit)
+        .count();
+    count += matches
+        .iter()
+        .filter(|s| s.category == Category::Bookmark)
+        .count();
+    count += matches
+        .iter()
+        .filter(|s| s.category == Category::History)
+        .count();
     if !query.is_empty() {
         count += 1; // web search row
     }
@@ -220,7 +307,9 @@ impl Render for SearchApp {
                                     .update(cx, |this, cx| {
                                         // If a row is selected via keyboard, navigate to it
                                         if let Some(selected) = this.selected_index {
-                                            if let Some(url) = url_for_selected_row(&this.search_text, selected) {
+                                            if let Some(url) =
+                                                url_for_selected_row(&this.search_text, selected)
+                                            {
                                                 this.navigate_to(&url, &url);
                                                 this.panel_visible = false;
                                                 this.selected_index = None;
@@ -235,10 +324,8 @@ impl Render for SearchApp {
                                         {
                                             this.navigate_to(&text, &text);
                                         } else {
-                                            let url = format!(
-                                                "https://google.com/search?q={}",
-                                                text
-                                            );
+                                            let url =
+                                                format!("https://google.com/search?q={}", text);
                                             this.navigate_to(&url, &format!("Search: {}", text));
                                         }
                                         cx.notify();
@@ -260,8 +347,13 @@ impl Render for SearchApp {
                                     })
                                     .ok();
                                 // Re-read state to show updated panel
-                                if let Ok(text) = weak_move_down.read_with(cx, |this, _| this.search_text.clone()) {
-                                    let selected = weak_move_down.read_with(cx, |this, _| this.selected_index).ok().flatten();
+                                if let Ok(text) =
+                                    weak_move_down.read_with(cx, |this, _| this.search_text.clone())
+                                {
+                                    let selected = weak_move_down
+                                        .read_with(cx, |this, _| this.selected_index)
+                                        .ok()
+                                        .flatten();
                                     if !text.is_empty() {
                                         show_suggestion_panel(&text, selected, window);
                                     }
@@ -281,8 +373,13 @@ impl Render for SearchApp {
                                         cx.notify();
                                     })
                                     .ok();
-                                if let Ok(text) = weak_move_up.read_with(cx, |this, _| this.search_text.clone()) {
-                                    let selected = weak_move_up.read_with(cx, |this, _| this.selected_index).ok().flatten();
+                                if let Ok(text) =
+                                    weak_move_up.read_with(cx, |this, _| this.search_text.clone())
+                                {
+                                    let selected = weak_move_up
+                                        .read_with(cx, |this, _| this.selected_index)
+                                        .ok()
+                                        .flatten();
                                     if !text.is_empty() {
                                         show_suggestion_panel(&text, selected, window);
                                     }
@@ -298,16 +395,18 @@ impl Render for SearchApp {
                                     })
                                     .ok();
                             })
-                            .on_end_editing(move |_event: &NativeToolbarSearchEvent, window, cx| {
-                                window.dismiss_native_panel();
-                                weak_end_editing
-                                    .update(cx, |this, cx| {
-                                        this.panel_visible = false;
-                                        this.selected_index = None;
-                                        cx.notify();
-                                    })
-                                    .ok();
-                            }),
+                            .on_end_editing(
+                                move |_event: &NativeToolbarSearchEvent, window, cx| {
+                                    window.dismiss_native_panel();
+                                    weak_end_editing
+                                        .update(cx, |this, cx| {
+                                            this.panel_visible = false;
+                                            this.selected_index = None;
+                                            cx.notify();
+                                        })
+                                        .ok();
+                                },
+                            ),
                     )),
             ));
             self.toolbar_installed = true;
@@ -332,8 +431,18 @@ impl Render for SearchApp {
                 .justify_center()
                 .gap_4()
                 .bg(bg)
-                .child(div().text_2xl().text_color(fg).child(self.current_title.clone()))
-                .child(div().text_base().text_color(accent).child(self.current_url.clone()))
+                .child(
+                    div()
+                        .text_2xl()
+                        .text_color(fg)
+                        .child(self.current_title.clone()),
+                )
+                .child(
+                    div()
+                        .text_base()
+                        .text_color(accent)
+                        .child(self.current_url.clone()),
+                )
                 .child(
                     div()
                         .text_sm()
@@ -507,10 +616,14 @@ fn show_suggestion_panel(query: &str, selected_index: Option<usize>, window: &mu
         }
     }
 
-    let heading_count = [!top_hits.is_empty(), !bookmarks.is_empty(), !history.is_empty()]
-        .iter()
-        .filter(|&&b| b)
-        .count();
+    let heading_count = [
+        !top_hits.is_empty(),
+        !bookmarks.is_empty(),
+        !history.is_empty(),
+    ]
+    .iter()
+    .filter(|&&b| b)
+    .count();
     let separator_count = heading_count.saturating_sub(1)
         + if !query.is_empty() && heading_count > 0 {
             1
@@ -523,7 +636,9 @@ fn show_suggestion_panel(query: &str, selected_index: Option<usize>, window: &mu
     let heading_height = 28.0;
     let separator_height = 12.0;
     // Add separator for the search row if there are other sections
-    let search_separator = if !query.is_empty() && (!top_hits.is_empty() || !bookmarks.is_empty() || !history.is_empty()) {
+    let search_separator = if !query.is_empty()
+        && (!top_hits.is_empty() || !bookmarks.is_empty() || !history.is_empty())
+    {
         separator_height
     } else {
         0.0

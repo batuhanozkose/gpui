@@ -1,11 +1,10 @@
 use gpui::{
-    App, Bounds, Context, NativeColor, NativePopover, NativePopoverAnchor,
-    NativePopoverBehavior, NativePopoverCheckbox, NativePopoverClickableRow,
-    NativePopoverCloseEvent, NativePopoverColorDot, NativePopoverContentItem,
-    NativePopoverProgress, NativePopoverShowEvent, NativePopoverToggle, NativeToolbar,
-    NativeToolbarButton, NativeToolbarClickEvent, NativeToolbarDisplayMode, NativeToolbarItem,
-    NativeToolbarSizeMode, Window, WindowAppearance, WindowBounds, WindowOptions, div, prelude::*,
-    px, rgb, size,
+    App, Bounds, Context, NativeColor, NativePopover, NativePopoverAnchor, NativePopoverBehavior,
+    NativePopoverCheckbox, NativePopoverClickableRow, NativePopoverCloseEvent,
+    NativePopoverColorDot, NativePopoverContentItem, NativePopoverProgress, NativePopoverShowEvent,
+    NativePopoverToggle, NativeToolbar, NativeToolbarButton, NativeToolbarClickEvent,
+    NativeToolbarDisplayMode, NativeToolbarItem, NativeToolbarSizeMode, Window, WindowAppearance,
+    WindowBounds, WindowOptions, div, prelude::*, px, rgb, size,
 };
 
 struct ExtendedPopoverExample {
@@ -31,55 +30,67 @@ impl ExtendedPopoverExample {
         window.show_native_popover(
             NativePopover::new(320.0, 340.0)
                 .behavior(NativePopoverBehavior::Transient)
-                .on_show(cx.listener(
-                    |this, _event: &NativePopoverShowEvent, _window, cx| {
+                .on_show(
+                    cx.listener(|this, _event: &NativePopoverShowEvent, _window, cx| {
                         this.popover_visible = true;
                         this.status_message = "LSP popover shown.".to_string();
                         cx.notify();
-                    },
-                ))
-                .on_close(cx.listener(
-                    |this, _event: &NativePopoverCloseEvent, _window, cx| {
+                    }),
+                )
+                .on_close(
+                    cx.listener(|this, _event: &NativePopoverCloseEvent, _window, cx| {
                         this.popover_visible = false;
                         this.status_message = "LSP popover closed.".to_string();
                         cx.notify();
-                    },
-                ))
+                    }),
+                )
                 .item(NativePopoverContentItem::heading("Language Servers"))
                 .item(NativePopoverContentItem::separator())
-                .item(NativePopoverColorDot::new("rust-analyzer", NativeColor::Green)
-                    .detail("v0.3.1 \u{2022} 124 MB")
-                    .on_click(|window, _cx| {
-                        println!("Clicked rust-analyzer");
-                        window.dismiss_native_popover();
-                    }))
-                .item(NativePopoverColorDot::new("typescript-language-server", NativeColor::Green)
-                    .detail("v4.3.3 \u{2022} 86 MB")
-                    .on_click(|window, _cx| {
-                        println!("Clicked typescript-language-server");
-                        window.dismiss_native_popover();
-                    }))
-                .item(NativePopoverColorDot::new("gopls", NativeColor::Yellow)
-                    .detail("v0.15.0 \u{2022} Starting...")
-                    .on_click(|window, _cx| {
-                        println!("Clicked gopls");
-                        window.dismiss_native_popover();
-                    }))
-                .item(NativePopoverColorDot::new("clangd", NativeColor::Red)
-                    .detail("Error: binary not found"))
+                .item(
+                    NativePopoverColorDot::new("rust-analyzer", NativeColor::Green)
+                        .detail("v0.3.1 \u{2022} 124 MB")
+                        .on_click(|window, _cx| {
+                            println!("Clicked rust-analyzer");
+                            window.dismiss_native_popover();
+                        }),
+                )
+                .item(
+                    NativePopoverColorDot::new("typescript-language-server", NativeColor::Green)
+                        .detail("v4.3.3 \u{2022} 86 MB")
+                        .on_click(|window, _cx| {
+                            println!("Clicked typescript-language-server");
+                            window.dismiss_native_popover();
+                        }),
+                )
+                .item(
+                    NativePopoverColorDot::new("gopls", NativeColor::Yellow)
+                        .detail("v0.15.0 \u{2022} Starting...")
+                        .on_click(|window, _cx| {
+                            println!("Clicked gopls");
+                            window.dismiss_native_popover();
+                        }),
+                )
+                .item(
+                    NativePopoverColorDot::new("clangd", NativeColor::Red)
+                        .detail("Error: binary not found"),
+                )
                 .item(NativePopoverContentItem::separator())
-                .item(NativePopoverClickableRow::new("Restart All Servers")
-                    .icon("arrow.clockwise")
-                    .on_click(|window, _cx| {
-                        println!("Restart all servers");
-                        window.dismiss_native_popover();
-                    }))
-                .item(NativePopoverClickableRow::new("View Logs")
-                    .icon("doc.text")
-                    .on_click(|window, _cx| {
-                        println!("View logs");
-                        window.dismiss_native_popover();
-                    })),
+                .item(
+                    NativePopoverClickableRow::new("Restart All Servers")
+                        .icon("arrow.clockwise")
+                        .on_click(|window, _cx| {
+                            println!("Restart all servers");
+                            window.dismiss_native_popover();
+                        }),
+                )
+                .item(
+                    NativePopoverClickableRow::new("View Logs")
+                        .icon("doc.text")
+                        .on_click(|window, _cx| {
+                            println!("View logs");
+                            window.dismiss_native_popover();
+                        }),
+                ),
             NativePopoverAnchor::ToolbarItem("lsp".into()),
         );
     }
@@ -95,50 +106,68 @@ impl ExtendedPopoverExample {
         window.show_native_popover(
             NativePopover::new(300.0, 380.0)
                 .behavior(NativePopoverBehavior::Transient)
-                .on_show(cx.listener(
-                    |this, _event: &NativePopoverShowEvent, _window, cx| {
+                .on_show(
+                    cx.listener(|this, _event: &NativePopoverShowEvent, _window, cx| {
                         this.popover_visible = true;
                         this.status_message = "Predictions popover shown.".to_string();
                         cx.notify();
-                    },
-                ))
-                .on_close(cx.listener(
-                    |this, _event: &NativePopoverCloseEvent, _window, cx| {
+                    }),
+                )
+                .on_close(
+                    cx.listener(|this, _event: &NativePopoverCloseEvent, _window, cx| {
                         this.popover_visible = false;
                         this.status_message = "Predictions popover closed.".to_string();
                         cx.notify();
-                    },
-                ))
+                    }),
+                )
                 .item(NativePopoverContentItem::heading("Edit Predictions"))
                 .item(NativePopoverContentItem::separator())
-                .item(NativePopoverToggle::new("Show Predictions", predictions_enabled)
-                    .on_change(|checked, _window, _cx| {
-                        println!("Predictions enabled: {checked}");
-                    })
-                    .description("Suggest completions as you type"))
-                .item(NativePopoverToggle::new("Privacy Mode", privacy_mode)
-                    .on_change(|checked, _window, _cx| {
-                        println!("Privacy mode: {checked}");
-                    }))
+                .item(
+                    NativePopoverToggle::new("Show Predictions", predictions_enabled)
+                        .on_change(|checked, _window, _cx| {
+                            println!("Predictions enabled: {checked}");
+                        })
+                        .description("Suggest completions as you type"),
+                )
+                .item(
+                    NativePopoverToggle::new("Privacy Mode", privacy_mode).on_change(
+                        |checked, _window, _cx| {
+                            println!("Privacy mode: {checked}");
+                        },
+                    ),
+                )
                 .item(NativePopoverContentItem::separator())
                 .item(NativePopoverContentItem::heading("Display Mode"))
-                .item(NativePopoverCheckbox::new("Eager Mode", eager_mode)
-                    .on_change(|checked, _window, _cx| {
-                        println!("Eager mode: {checked}");
-                    }))
-                .item(NativePopoverCheckbox::new("Subtle Mode", subtle_mode)
-                    .on_change(|checked, _window, _cx| {
-                        println!("Subtle mode: {checked}");
-                    }))
+                .item(
+                    NativePopoverCheckbox::new("Eager Mode", eager_mode).on_change(
+                        |checked, _window, _cx| {
+                            println!("Eager mode: {checked}");
+                        },
+                    ),
+                )
+                .item(
+                    NativePopoverCheckbox::new("Subtle Mode", subtle_mode).on_change(
+                        |checked, _window, _cx| {
+                            println!("Subtle mode: {checked}");
+                        },
+                    ),
+                )
                 .item(NativePopoverContentItem::separator())
                 .item(NativePopoverContentItem::heading("Usage"))
-                .item(NativePopoverProgress::new(usage_count, usage_max)
-                    .label(format!("{} / {} predictions used", usage_count as u32, usage_max as u32)))
+                .item(
+                    NativePopoverProgress::new(usage_count, usage_max).label(format!(
+                        "{} / {} predictions used",
+                        usage_count as u32, usage_max as u32
+                    )),
+                )
                 .item(NativePopoverContentItem::separator())
-                .item(NativePopoverContentItem::button("Manage Settings...", |window, _cx| {
-                    println!("Manage settings");
-                    window.dismiss_native_popover();
-                })),
+                .item(NativePopoverContentItem::button(
+                    "Manage Settings...",
+                    |window, _cx| {
+                        println!("Manage settings");
+                        window.dismiss_native_popover();
+                    },
+                )),
             NativePopoverAnchor::ToolbarItem("predictions".into()),
         );
     }
@@ -174,11 +203,7 @@ impl Render for ExtendedPopoverExample {
                             .tool_tip("Show language server status")
                             .on_click(cx.listener(
                                 |this, _event: &NativeToolbarClickEvent, window, cx| {
-                                    this.toggle_popover(
-                                        Self::show_lsp_popover,
-                                        window,
-                                        cx,
-                                    );
+                                    this.toggle_popover(Self::show_lsp_popover, window, cx);
                                 },
                             )),
                     ))
@@ -189,11 +214,7 @@ impl Render for ExtendedPopoverExample {
                             .tool_tip("Show edit prediction settings")
                             .on_click(cx.listener(
                                 |this, _event: &NativeToolbarClickEvent, window, cx| {
-                                    this.toggle_popover(
-                                        Self::show_predictions_popover,
-                                        window,
-                                        cx,
-                                    );
+                                    this.toggle_popover(Self::show_predictions_popover, window, cx);
                                 },
                             )),
                     )),

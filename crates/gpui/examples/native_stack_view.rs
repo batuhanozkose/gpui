@@ -15,8 +15,16 @@ impl Render for StackViewExample {
             window.appearance(),
             WindowAppearance::Dark | WindowAppearance::VibrantDark
         );
-        let fg = if is_dark { rgb(0xffffff) } else { rgb(0x1a1a1a) };
-        let muted = if is_dark { rgb(0x999999) } else { rgb(0x666666) };
+        let fg = if is_dark {
+            rgb(0xffffff)
+        } else {
+            rgb(0x1a1a1a)
+        };
+        let muted = if is_dark {
+            rgb(0x999999)
+        } else {
+            rgb(0x666666)
+        };
 
         div()
             .flex()
@@ -34,24 +42,17 @@ impl Render for StackViewExample {
                     .flex_col()
                     .items_center()
                     .gap_2()
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(muted)
-                            .child(format!(
-                                "Horizontal — EqualSpacing ({} buttons)",
-                                self.horizontal_count
-                            )),
-                    )
-                    .child(
-                        div().flex().flex_row().gap_2().children(
-                            (0..self.horizontal_count).map(|i| {
-                                native_button(format!("h-btn-{i}"), format!("Item {}", i + 1))
-                                    .w(px(80.0))
-                                    .h(px(24.0))
-                            }),
-                        ),
-                    )
+                    .child(div().text_sm().text_color(muted).child(format!(
+                        "Horizontal — EqualSpacing ({} buttons)",
+                        self.horizontal_count
+                    )))
+                    .child(div().flex().flex_row().gap_2().children(
+                        (0..self.horizontal_count).map(|i| {
+                            native_button(format!("h-btn-{i}"), format!("Item {}", i + 1))
+                                .w(px(80.0))
+                                .h(px(24.0))
+                        }),
+                    ))
                     .child(
                         div()
                             .flex()
@@ -87,23 +88,18 @@ impl Render for StackViewExample {
                     .items_center()
                     .gap_2()
                     .child(
-                        div()
-                            .text_sm()
-                            .text_color(muted)
-                            .child("NSStackView container (native, empty — for composition with FFI)"),
+                        div().text_sm().text_color(muted).child(
+                            "NSStackView container (native, empty — for composition with FFI)",
+                        ),
                     )
                     .child(
-                        div()
-                            .border_1()
-                            .border_color(muted)
-                            .rounded(px(4.0))
-                            .child(
-                                native_stack_view("h-stack", NativeStackOrientation::Horizontal)
-                                    .spacing(8.0)
-                                    .distribution(NativeStackDistribution::EqualSpacing)
-                                    .w(px(400.0))
-                                    .h(px(40.0)),
-                            ),
+                        div().border_1().border_color(muted).rounded(px(4.0)).child(
+                            native_stack_view("h-stack", NativeStackOrientation::Horizontal)
+                                .spacing(8.0)
+                                .distribution(NativeStackDistribution::EqualSpacing)
+                                .w(px(400.0))
+                                .h(px(40.0)),
+                        ),
                     ),
             )
             // Vertical layout demo using GPUI flex (showing the concept)
@@ -120,13 +116,15 @@ impl Render for StackViewExample {
                             .child(format!("Vertical buttons ({})", self.vertical_count)),
                     )
                     .child(
-                        div().flex().flex_col().gap_1().children(
-                            (0..self.vertical_count).map(|i| {
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .children((0..self.vertical_count).map(|i| {
                                 native_button(format!("v-btn-{i}"), format!("Row {}", i + 1))
                                     .w(px(120.0))
                                     .h(px(24.0))
-                            }),
-                        ),
+                            })),
                     )
                     .child(
                         div()

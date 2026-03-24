@@ -21,20 +21,19 @@ impl Render for NativeToolbarLabelExample {
                     .item(NativeToolbarItem::Button(
                         NativeToolbarButton::new("action", "Action")
                             .icon("play.circle")
-                            .on_click(cx.listener(
-                                |this, _: &NativeToolbarClickEvent, _, cx| {
-                                    this.last_action = "clicked Action button".to_string();
-                                    cx.notify();
-                                },
-                            )),
+                            .on_click(cx.listener(|this, _: &NativeToolbarClickEvent, _, cx| {
+                                this.last_action = "clicked Action button".to_string();
+                                cx.notify();
+                            })),
                     ))
-                    .item(NativeToolbarItem::Label(
-                        NativeToolbarLabel::new("image_info", "1920x1080 \u{2022} 2.4 MB \u{2022} PNG"),
-                    ))
+                    .item(NativeToolbarItem::Label(NativeToolbarLabel::new(
+                        "image_info",
+                        "1920x1080 \u{2022} 2.4 MB \u{2022} PNG",
+                    )))
                     .item(NativeToolbarItem::FlexibleSpace)
-                    .item(NativeToolbarItem::Label(
-                        NativeToolbarLabel::new("status", "Ready"),
-                    ))
+                    .item(NativeToolbarItem::Label(NativeToolbarLabel::new(
+                        "status", "Ready",
+                    )))
                     .item(NativeToolbarItem::MenuButton(
                         NativeToolbarMenuButton::new(
                             "options",
@@ -80,10 +79,9 @@ impl Render for NativeToolbarLabelExample {
             .text_color(fg)
             .child(div().text_xl().child("Native Toolbar Label Demo"))
             .child(
-                div()
-                    .text_sm()
-                    .text_color(muted)
-                    .child("The toolbar above includes Label items (plain text, no button chrome)."),
+                div().text_sm().text_color(muted).child(
+                    "The toolbar above includes Label items (plain text, no button chrome).",
+                ),
             )
             .child(
                 div()

@@ -1,8 +1,8 @@
 use gpui::{
-    App, Bounds, CollectionSelectEvent, Context, NativeCollectionItemStyle,
-    NativeOutlineNode, OutlineRowSelectEvent, TableRowSelectEvent, Window, WindowAppearance,
-    WindowBounds, WindowOptions, div, native_collection_view, native_outline_view,
-    native_table_view, prelude::*, px, rgb, size,
+    App, Bounds, CollectionSelectEvent, Context, NativeCollectionItemStyle, NativeOutlineNode,
+    OutlineRowSelectEvent, TableRowSelectEvent, Window, WindowAppearance, WindowBounds,
+    WindowOptions, div, native_collection_view, native_outline_view, native_table_view, prelude::*,
+    px, rgb, size,
 };
 
 struct ListViewsExample {

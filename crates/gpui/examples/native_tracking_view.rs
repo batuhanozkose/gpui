@@ -13,8 +13,16 @@ impl Render for TrackingViewExample {
             window.appearance(),
             WindowAppearance::Dark | WindowAppearance::VibrantDark
         );
-        let fg = if is_dark { rgb(0xffffff) } else { rgb(0x1a1a1a) };
-        let muted = if is_dark { rgb(0x999999) } else { rgb(0x666666) };
+        let fg = if is_dark {
+            rgb(0xffffff)
+        } else {
+            rgb(0x1a1a1a)
+        };
+        let muted = if is_dark {
+            rgb(0x999999)
+        } else {
+            rgb(0x666666)
+        };
 
         let colors = [
             ("Red", rgb(0xcc3333)),
@@ -23,10 +31,7 @@ impl Render for TrackingViewExample {
             ("Yellow", rgb(0xcccc33)),
         ];
 
-        let hover_label = self
-            .hovered
-            .as_deref()
-            .unwrap_or("None");
+        let hover_label = self.hovered.as_deref().unwrap_or("None");
 
         let mut row = div().flex().flex_row().gap_4().justify_center();
         for (idx, (name, color)) in colors.iter().enumerate() {
@@ -51,10 +56,12 @@ impl Render for TrackingViewExample {
                             .opacity(opacity)
                             .child(
                                 native_tracking_view(format!("track-{idx}"))
-                                    .on_mouse_enter(cx.listener(move |this, _event, _window, cx| {
-                                        this.hovered = Some(name_enter.clone());
-                                        cx.notify();
-                                    }))
+                                    .on_mouse_enter(cx.listener(
+                                        move |this, _event, _window, cx| {
+                                            this.hovered = Some(name_enter.clone());
+                                            cx.notify();
+                                        },
+                                    ))
                                     .on_mouse_exit(cx.listener(|this, _event, _window, cx| {
                                         this.hovered = None;
                                         cx.notify();
@@ -63,12 +70,7 @@ impl Render for TrackingViewExample {
                                     .h(px(100.0)),
                             ),
                     )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(muted)
-                            .child(name_str),
-                    ),
+                    .child(div().text_xs().text_color(muted).child(name_str)),
             );
         }
 
