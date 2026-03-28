@@ -1403,6 +1403,20 @@ pub(crate) unsafe fn set_inspector_collapsed(
     }
 }
 
+pub(crate) unsafe fn embedded_content_size(host_view: id) -> Option<NSSize> {
+    unsafe {
+        let Some(host_data) = host_data_mut(host_view) else {
+            return None;
+        };
+        if host_data.embedded_content_view == nil {
+            return None;
+        }
+
+        let frame: NSRect = msg_send![host_data.embedded_content_view, frame];
+        Some(frame.size)
+    }
+}
+
 pub(crate) unsafe fn set_sidebar_items(
     host_view: id,
     items: &[&str],

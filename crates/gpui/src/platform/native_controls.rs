@@ -1,4 +1,4 @@
-use crate::{Bounds, Pixels};
+use crate::{Bounds, Pixels, Size};
 use std::ffi::c_void;
 
 // =============================================================================
@@ -642,6 +642,8 @@ pub trait PlatformNativeControls {
     fn get_text_field_value(&self, state: &NativeControlState) -> String;
 
     fn get_combo_box_value(&self, state: &NativeControlState) -> String;
+
+    fn sidebar_content_size(&self, state: &NativeControlState) -> Option<Size<Pixels>>;
 
     // ── Context menu ─────────────────────────────────────────────────────
 
