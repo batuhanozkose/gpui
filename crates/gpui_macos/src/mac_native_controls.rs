@@ -1495,13 +1495,6 @@ impl PlatformNativeControls for MacNativeControls {
         unsafe { native_controls::get_native_combo_box_string_value(state.view() as id) }
     }
 
-    fn sidebar_content_size(&self, state: &NativeControlState) -> Option<gpui::Size<Pixels>> {
-        unsafe {
-            let size = native_controls::embedded_content_size(state.view() as id)?;
-            Some(size(px(size.width as f32), px(size.height as f32)))
-        }
-    }
-
     fn show_context_menu(
         &self,
         items: &[NativeMenuItemData],

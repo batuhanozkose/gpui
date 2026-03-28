@@ -456,7 +456,6 @@ impl Element for NativeSidebar {
 
         let next_frame_callbacks = window.next_frame_callbacks.clone();
         let invalidator = window.invalidator.clone();
-        let mut hosted_content_size = None;
 
         window.with_optional_element_state::<SidebarExtraState, _>(id, |prev_state, window| {
             let mut state = prev_state.flatten().unwrap_or_default();
@@ -611,8 +610,6 @@ impl Element for NativeSidebar {
                 }
             }
 
-            hosted_content_size = window.native_controls().sidebar_content_size(&state.native);
-
             #[cfg(not(target_os = "macos"))]
             {
                 let _ = sidebar_view;
@@ -623,8 +620,7 @@ impl Element for NativeSidebar {
         });
 
         if embed_in_sidebar || has_sidebar_view || has_inspector {
-            let new_size =
-                hosted_content_size.unwrap_or_else(|| window.platform_window.content_size());
+            let new_size = window.platform_window.content_size();
             if window.viewport_size != new_size {
                 window.viewport_size = new_size;
                 window.invalidator.set_dirty(true);
