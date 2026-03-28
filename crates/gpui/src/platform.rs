@@ -897,6 +897,7 @@ pub struct PlatformNativePanel {
     pub style: PlatformNativePanelStyle,
     pub level: PlatformNativePanelLevel,
     pub non_activating: bool,
+    pub transient: bool,
     pub has_shadow: bool,
     pub corner_radius: f64,
     pub material: Option<PlatformNativePanelMaterial>,

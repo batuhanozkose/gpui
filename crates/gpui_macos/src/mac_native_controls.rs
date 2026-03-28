@@ -1517,6 +1517,7 @@ impl PlatformNativeControls for MacNativeControls {
                 convert_panel_style(config.style),
                 convert_panel_level(config.level),
                 config.non_activating,
+                false,
                 config.has_shadow,
                 config.corner_radius,
                 convert_panel_material(config.material),

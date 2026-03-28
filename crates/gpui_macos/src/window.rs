@@ -1759,6 +1759,7 @@ impl PlatformWindow for MacWindow {
                 style,
                 level,
                 panel_config.non_activating,
+                panel_config.transient,
                 panel_config.has_shadow,
                 panel_config.corner_radius,
                 material,
@@ -1766,260 +1767,14 @@ impl PlatformWindow for MacWindow {
             )
         };
 
-        let mut button_targets = Vec::new();
-        let mut switch_targets = Vec::new();
-        let mut checkbox_targets = Vec::new();
-        let mut hover_row_targets = Vec::new();
-
-        // Populate panel content with either hosted GPUI content or native items.
-        unsafe {
-            let content_view = crate::native_controls::get_native_panel_content_view(panel);
-            if let Some(hosted_surface_view) = panel_config.hosted_surface_view {
-                let bounds: NSRect = msg_send![content_view, bounds];
-                let _: () = msg_send![hosted_surface_view as id, setFrame: bounds];
-                let _: () = msg_send![hosted_surface_view as id, setAutoresizingMask: 18u64];
-                let _: () = msg_send![content_view, addSubview: hosted_surface_view as id];
-            } else {
-                let padding = 16.0;
-                let content_width = panel_config.width - padding * 2.0;
-
-                // Calculate total content height
-                let mut item_heights: Vec<f64> = Vec::new();
-                for item in &panel_config.content_items {
-                    let height = match item {
-                        PlatformNativePopoverContentItem::Label { bold, .. } => {
-                            if *bold {
-                                28.0
-                            } else {
-                                22.0
-                            }
-                        }
-                        PlatformNativePopoverContentItem::SmallLabel { .. } => 18.0,
-                        PlatformNativePopoverContentItem::IconLabel { .. } => 24.0,
-                        PlatformNativePopoverContentItem::Button { .. } => 32.0,
-                        PlatformNativePopoverContentItem::Toggle { description, .. } => {
-                            if description.is_some() {
-                                44.0
-                            } else {
-                                30.0
-                            }
-                        }
-                        PlatformNativePopoverContentItem::Checkbox { .. } => 24.0,
-                        PlatformNativePopoverContentItem::ProgressBar { label, .. } => {
-                            if label.is_some() { 36.0 } else { 20.0 }
-                        }
-                        PlatformNativePopoverContentItem::ColorDot { detail, .. } => {
-                            if detail.is_some() { 38.0 } else { 24.0 }
-                        }
-                        PlatformNativePopoverContentItem::ClickableRow { detail, .. } => {
-                            if detail.is_some() { 36.0 } else { 28.0 }
-                        }
-                        PlatformNativePopoverContentItem::Separator => 12.0,
-                    };
-                    item_heights.push(height);
-                }
-
-                let total_content_height: f64 = item_heights.iter().sum::<f64>() + padding * 2.0;
-
-                // Set up NSScrollView wrapping the content
-                let content_bounds: NSRect = msg_send![content_view, bounds];
-                let scroll_view: id = msg_send![class!(NSScrollView), alloc];
-                let scroll_view: id = msg_send![scroll_view, initWithFrame: content_bounds];
-                let _: () = msg_send![scroll_view, setHasVerticalScroller: YES];
-                let _: () = msg_send![scroll_view, setHasHorizontalScroller: NO];
-                let _: () = msg_send![scroll_view, setDrawsBackground: NO];
-                // NSViewWidthSizable | NSViewHeightSizable = 18
-                let _: () = msg_send![scroll_view, setAutoresizingMask: 18u64];
-
-                // Create the document view (flipped so top-down coordinates work naturally)
-                let doc_frame = NSRect::new(
-                    NSPoint::new(0.0, 0.0),
-                    NSSize::new(panel_config.width, total_content_height),
-                );
-                let doc_view: id = msg_send![class!(NSView), alloc];
-                let doc_view: id = msg_send![doc_view, initWithFrame: doc_frame];
-                let _: () = msg_send![scroll_view, setDocumentView: doc_view];
-                let _: () = msg_send![doc_view, release];
-
-                let _: () = msg_send![content_view, addSubview: scroll_view];
-                let _: () = msg_send![scroll_view, release];
-
-                // Place items into the document view using bottom-up coordinates
-                let mut top_y = padding;
-                for (item, height) in panel_config.content_items.into_iter().zip(item_heights) {
-                    let flipped_y = total_content_height - top_y - height;
-
-                    match item {
-                        PlatformNativePopoverContentItem::Label { text, bold } => {
-                            let font_size = if bold { 15.0 } else { 13.0 };
-                            let label_height = if bold { 22.0 } else { 18.0 };
-                            crate::native_controls::add_native_popover_label(
-                                doc_view,
-                                text.as_ref(),
-                                padding,
-                                flipped_y,
-                                content_width,
-                                label_height,
-                                font_size,
-                                bold,
-                            );
-                        }
-                        PlatformNativePopoverContentItem::SmallLabel { text } => {
-                            crate::native_controls::add_native_popover_small_label(
-                                doc_view,
-                                text.as_ref(),
-                                padding,
-                                flipped_y,
-                                content_width,
-                            );
-                        }
-                        PlatformNativePopoverContentItem::IconLabel { icon, text } => {
-                            crate::native_controls::add_native_popover_icon_label(
-                                doc_view,
-                                icon.as_ref(),
-                                text.as_ref(),
-                                padding,
-                                flipped_y,
-                                content_width,
-                            );
-                        }
-                        PlatformNativePopoverContentItem::Button { title, on_click } => {
-                            let button = crate::native_controls::add_native_popover_button(
-                                doc_view,
-                                title.as_ref(),
-                                padding,
-                                flipped_y,
-                                content_width,
-                                28.0,
-                            );
-                            if let Some(callback) = on_click {
-                                let target = crate::native_controls::set_native_button_action(
-                                    button, callback,
-                                );
-                                button_targets.push(target);
-                            }
-                        }
-                        PlatformNativePopoverContentItem::Toggle {
-                            text,
-                            checked,
-                            on_change,
-                            enabled,
-                            description,
-                        } => {
-                            let target = crate::native_controls::add_native_popover_toggle(
-                                doc_view,
-                                text.as_ref(),
-                                checked,
-                                padding,
-                                flipped_y,
-                                content_width,
-                                enabled,
-                                description.as_ref().map(|s| AsRef::<str>::as_ref(s)),
-                                on_change,
-                            );
-                            if !target.is_null() {
-                                switch_targets.push(target);
-                            }
-                        }
-                        PlatformNativePopoverContentItem::Checkbox {
-                            text,
-                            checked,
-                            on_change,
-                            enabled,
-                        } => {
-                            let target = crate::native_controls::add_native_popover_checkbox(
-                                doc_view,
-                                text.as_ref(),
-                                checked,
-                                padding,
-                                flipped_y,
-                                content_width,
-                                enabled,
-                                on_change,
-                            );
-                            if !target.is_null() {
-                                checkbox_targets.push(target);
-                            }
-                        }
-                        PlatformNativePopoverContentItem::ProgressBar { value, max, label } => {
-                            crate::native_controls::add_native_popover_progress(
-                                doc_view,
-                                value,
-                                max,
-                                label.as_ref().map(|s| AsRef::<str>::as_ref(s)),
-                                padding,
-                                flipped_y,
-                                content_width,
-                            );
-                        }
-                        PlatformNativePopoverContentItem::ColorDot {
-                            color,
-                            text,
-                            detail,
-                            on_click,
-                        } => {
-                            let target = crate::native_controls::add_native_popover_color_dot(
-                                doc_view,
-                                color,
-                                text.as_ref(),
-                                detail.as_ref().map(|s| AsRef::<str>::as_ref(s)),
-                                padding,
-                                flipped_y,
-                                content_width,
-                                on_click,
-                            );
-                            if !target.is_null() {
-                                button_targets.push(target);
-                            }
-                        }
-                        PlatformNativePopoverContentItem::ClickableRow {
-                            icon,
-                            text,
-                            detail,
-                            on_click,
-                            enabled,
-                            selected,
-                        } => {
-                            let target = crate::native_controls::add_native_popover_clickable_row(
-                                doc_view,
-                                icon.as_ref().map(|s| AsRef::<str>::as_ref(s)),
-                                text.as_ref(),
-                                detail.as_ref().map(|s| AsRef::<str>::as_ref(s)),
-                                padding,
-                                flipped_y,
-                                content_width,
-                                enabled,
-                                selected,
-                                on_click,
-                            );
-                            if !target.is_null() {
-                                hover_row_targets.push(target);
-                            }
-                        }
-                        PlatformNativePopoverContentItem::Separator => {
-                            crate::native_controls::add_native_popover_separator(
-                                doc_view,
-                                padding,
-                                flipped_y + 5.0,
-                                content_width,
-                            );
-                        }
-                    }
-
-                    top_y += height;
-                }
-
-                // Scroll to top of content. In Cocoa's bottom-up coordinate system,
-                // the "top" of the content is at the highest y value.
-                if total_content_height > content_bounds.size.height {
-                    let clip_view: id = msg_send![scroll_view, contentView];
-                    let scroll_point =
-                        NSPoint::new(0.0, total_content_height - content_bounds.size.height);
-                    let _: () = msg_send![clip_view, scrollToPoint: scroll_point];
-                    let _: () = msg_send![scroll_view, reflectScrolledClipView: clip_view];
-                }
-            }
-        }
+        let (button_targets, switch_targets, checkbox_targets, hover_row_targets) = unsafe {
+            populate_native_panel_content(
+                panel,
+                panel_config.width,
+                panel_config.content_items,
+                panel_config.hosted_surface_view,
+            )
+        };
 
         // Position and show the panel based on anchor
         match anchor {
@@ -2092,6 +1847,7 @@ impl PlatformWindow for MacWindow {
                 crate::native_controls::NativePanelStyle::Borderless,
                 crate::native_controls::NativePanelLevel::PopUpMenu,
                 true,
+                false,
                 true,
                 12.0,
                 Some(crate::native_controls::NativePanelMaterial::Popover),

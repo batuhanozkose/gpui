@@ -2738,6 +2738,7 @@ pub struct NativePanel {
     style: NativePanelStyle,
     level: NativePanelLevel,
     non_activating: bool,
+    transient: bool,
     has_shadow: bool,
     corner_radius: f64,
     material: Option<NativePanelMaterial>,
@@ -2755,6 +2756,7 @@ impl NativePanel {
             style: NativePanelStyle::default(),
             level: NativePanelLevel::default(),
             non_activating: true,
+            transient: false,
             has_shadow: true,
             corner_radius: 10.0,
             material: None,
@@ -2779,6 +2781,12 @@ impl NativePanel {
     /// Sets whether the panel is non-activating (doesn't steal focus from main window).
     pub fn non_activating(mut self, non_activating: bool) -> Self {
         self.non_activating = non_activating;
+        self
+    }
+
+    /// Sets whether the panel should dismiss itself when the user clicks outside it.
+    pub fn transient(mut self, transient: bool) -> Self {
+        self.transient = transient;
         self
     }
 
@@ -2889,6 +2897,7 @@ impl NativePanel {
                 style,
                 level,
                 non_activating: self.non_activating,
+                transient: self.transient,
                 has_shadow: self.has_shadow,
                 corner_radius: self.corner_radius,
                 material,
@@ -5454,6 +5463,7 @@ impl Window {
             let main_scene = std::mem::take(&mut self.next_frame.scene);
             let main_mouse_listeners = std::mem::take(&mut self.next_frame.mouse_listeners);
             let main_hitboxes = std::mem::take(&mut self.next_frame.hitboxes);
+            let main_deferred_draws = std::mem::take(&mut self.next_frame.deferred_draws);
             let main_input_handlers = std::mem::take(&mut self.next_frame.input_handlers);
             let main_cursor_styles = std::mem::take(&mut self.next_frame.cursor_styles);
             let main_tooltip_requests = std::mem::take(&mut self.next_frame.tooltip_requests);
@@ -5480,6 +5490,11 @@ impl Window {
             self.invalidator.set_phase(DrawPhase::Prepaint);
             let mut root_element = root_view.into_any();
             root_element.prepaint_as_root(Point::default(), surface_size.into(), self, cx);
+
+            let mut sorted_deferred_draws =
+                (0..self.next_frame.deferred_draws.len()).collect::<SmallVec<[_; 8]>>();
+            sorted_deferred_draws.sort_by_key(|ix| self.next_frame.deferred_draws[*ix].priority);
+            self.prepaint_deferred_draws(&sorted_deferred_draws, cx);
 
             // Recompute the hit test from the freshly allocated hitboxes so that
             // is_hovered() sees matching IDs during paint. We cannot reuse the
@@ -5513,6 +5528,7 @@ impl Window {
             // Paint the surface's element tree
             self.invalidator.set_phase(DrawPhase::Paint);
             root_element.paint(self, cx);
+            self.paint_deferred_draws(&sorted_deferred_draws, cx);
 
             // Pop native view override
             self.pop_native_view_override();
@@ -5530,6 +5546,7 @@ impl Window {
             surface.mouse_listeners =
                 std::mem::replace(&mut self.next_frame.mouse_listeners, main_mouse_listeners);
             surface.hitboxes = std::mem::replace(&mut self.next_frame.hitboxes, main_hitboxes);
+            self.next_frame.deferred_draws = main_deferred_draws;
             // Preserve any input handlers registered by surface elements (e.g.
             // focused text fields) so they survive to the set_input_handler call
             // after draw. The main frame handlers are restored first, then surface

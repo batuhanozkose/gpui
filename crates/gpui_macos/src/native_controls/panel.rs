@@ -1,4 +1,5 @@
 use super::CALLBACK_IVAR;
+use block::ConcreteBlock;
 use cocoa::{
     base::{BOOL, NO, YES, id, nil},
     foundation::{NSPoint, NSRect, NSSize},
@@ -45,7 +46,12 @@ const NS_VISUAL_EFFECT_STATE_ACTIVE: i64 = 1;
 
 struct PanelCallbacks {
     on_close: Option<Box<dyn Fn()>>,
+    local_monitor: id,
+    global_monitor: id,
 }
+
+const NS_EVENT_MASK_LEFT_MOUSE_DOWN: u64 = 1 << 1;
+const NS_EVENT_MASK_RIGHT_MOUSE_DOWN: u64 = 1 << 3;
 
 static mut PANEL_DELEGATE_CLASS: *const Class = ptr::null();
 
@@ -142,6 +148,7 @@ pub(crate) unsafe fn create_native_panel(
     style: NativePanelStyle,
     level: NativePanelLevel,
     non_activating: bool,
+    transient: bool,
     has_shadow: bool,
     corner_radius: f64,
     material: Option<NativePanelMaterial>,
@@ -233,10 +240,48 @@ pub(crate) unsafe fn create_native_panel(
         let delegate: id = msg_send![PANEL_DELEGATE_CLASS, alloc];
         let delegate: id = msg_send![delegate, init];
 
-        let callbacks = PanelCallbacks { on_close };
+        let callbacks = PanelCallbacks {
+            on_close,
+            local_monitor: nil,
+            global_monitor: nil,
+        };
         let callbacks_ptr = Box::into_raw(Box::new(callbacks)) as *mut c_void;
         (*delegate).set_ivar::<*mut c_void>(CALLBACK_IVAR, callbacks_ptr);
         let _: () = msg_send![panel, setDelegate: delegate];
+
+        if transient {
+            let event_mask = NS_EVENT_MASK_LEFT_MOUSE_DOWN | NS_EVENT_MASK_RIGHT_MOUSE_DOWN;
+
+            let panel_for_local = panel;
+            let local_handler = ConcreteBlock::new(move |event: id| -> id {
+                let event_window: id = msg_send![event, window];
+                if event_window != panel_for_local {
+                    let _: () = msg_send![panel_for_local, close];
+                }
+                event
+            })
+            .copy();
+            let local_monitor: id = msg_send![
+                class!(NSEvent),
+                addLocalMonitorForEventsMatchingMask: event_mask
+                handler: &*local_handler
+            ];
+
+            let panel_for_global = panel;
+            let global_handler = ConcreteBlock::new(move |_event: id| {
+                let _: () = msg_send![panel_for_global, close];
+            })
+            .copy();
+            let global_monitor: id = msg_send![
+                class!(NSEvent),
+                addGlobalMonitorForEventsMatchingMask: event_mask
+                handler: &*global_handler
+            ];
+
+            let callbacks = &mut *(callbacks_ptr as *mut PanelCallbacks);
+            callbacks.local_monitor = local_monitor;
+            callbacks.global_monitor = global_monitor;
+        }
 
         (panel, delegate as *mut c_void)
     }
@@ -425,7 +470,15 @@ pub(crate) unsafe fn release_native_panel(panel: id, delegate_ptr: *mut c_void) 
             let delegate = delegate_ptr as id;
             let callbacks_ptr: *mut c_void = *(*delegate).get_ivar(CALLBACK_IVAR);
             if !callbacks_ptr.is_null() {
-                let _ = Box::from_raw(callbacks_ptr as *mut PanelCallbacks);
+                let callbacks = Box::from_raw(callbacks_ptr as *mut PanelCallbacks);
+                if callbacks.local_monitor != nil {
+                    let _: () =
+                        msg_send![class!(NSEvent), removeMonitor: callbacks.local_monitor];
+                }
+                if callbacks.global_monitor != nil {
+                    let _: () =
+                        msg_send![class!(NSEvent), removeMonitor: callbacks.global_monitor];
+                }
             }
             let _: () = msg_send![delegate, release];
         }

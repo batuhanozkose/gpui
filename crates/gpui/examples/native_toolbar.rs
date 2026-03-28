@@ -5,12 +5,28 @@ use gpui::{
     WindowOptions, div, prelude::*, px, rgb, size,
 };
 
+struct HostedToolbarBadge;
+
+impl Render for HostedToolbarBadge {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .px_2()
+            .py_0p5()
+            .rounded(px(999.0))
+            .bg(rgb(0x0a84ff))
+            .text_color(rgb(0xffffff))
+            .text_xs()
+            .child("GPUI")
+    }
+}
+
 struct NativeToolbarExample {
     toolbar_installed: bool,
     count: usize,
     query: String,
     submitted: String,
     last_action: String,
+    hosted_badge: gpui::Entity<HostedToolbarBadge>,
 }
 
 impl Render for NativeToolbarExample {
@@ -53,6 +69,17 @@ impl Render for NativeToolbarExample {
                             .on_click(cx.listener(
                                 |this, _event: &NativeToolbarClickEvent, _, cx| {
                                     this.last_action = "clicked avatar".to_string();
+                                    cx.notify();
+                                },
+                            )),
+                    ))
+                    .item(NativeToolbarItem::Button(
+                        NativeToolbarButton::new("hosted", "Hosted")
+                            .tool_tip("GPUI-rendered content hosted inside a native toolbar button")
+                            .content_view(self.hosted_badge.clone())
+                            .on_click(cx.listener(
+                                |this, event: &NativeToolbarClickEvent, _, cx| {
+                                    this.last_action = format!("clicked {}", event.item_id);
                                     cx.notify();
                                 },
                             )),
@@ -128,7 +155,7 @@ impl Render for NativeToolbarExample {
                 div()
                     .text_sm()
                     .text_color(muted)
-                    .child("Use toolbar buttons and search field above the content area."),
+                    .child("Use toolbar buttons, hosted GPUI content, and the search field above the content area."),
             )
     }
 }
@@ -142,12 +169,14 @@ fn main() {
                 ..Default::default()
             },
             |_, cx| {
+                let hosted_badge = cx.new(|_| HostedToolbarBadge);
                 cx.new(|_| NativeToolbarExample {
                     toolbar_installed: false,
                     count: 0,
                     query: String::new(),
                     submitted: String::new(),
                     last_action: "<none>".to_string(),
+                    hosted_badge,
                 })
             },
         )
