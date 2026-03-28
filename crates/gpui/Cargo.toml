@@ -354,6 +354,10 @@ name = "native_toolbar_popover"
 path = "examples/native_toolbar_popover.rs"
 
 [[example]]
+name = "native_toolbar_gpui_overlays"
+path = "examples/native_toolbar_gpui_overlays.rs"
+
+[[example]]
 name = "native_popover_extended"
 path = "examples/native_popover_extended.rs"
 
