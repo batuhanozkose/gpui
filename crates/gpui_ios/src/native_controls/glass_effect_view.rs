@@ -16,11 +16,11 @@ pub(crate) unsafe fn create_native_glass_effect_view() -> id {
 pub(crate) unsafe fn set_native_glass_effect_style(view: id, style: i64) {
     unsafe {
         let ios_style = match style {
-            0 => 8i64,  // Ultra thin
-            1 => 7,     // Thin
-            2 => 6,     // Regular
-            3 => 9,     // Thick
-            _ => 8,     // Default ultra thin
+            0 => 8i64, // Ultra thin
+            1 => 7,    // Thin
+            2 => 6,    // Regular
+            3 => 9,    // Thick
+            _ => 8,    // Default ultra thin
         };
         let effect: id = msg_send![class!(UIBlurEffect), effectWithStyle: ios_style];
         let _: () = msg_send![view, setEffect: effect];
@@ -37,13 +37,7 @@ pub(crate) unsafe fn set_native_glass_effect_corner_radius(view: id, radius: f64
 }
 
 /// Sets a tint color overlay on the glass.
-pub(crate) unsafe fn set_native_glass_effect_tint_color(
-    view: id,
-    r: f64,
-    g: f64,
-    b: f64,
-    a: f64,
-) {
+pub(crate) unsafe fn set_native_glass_effect_tint_color(view: id, r: f64, g: f64, b: f64, a: f64) {
     unsafe {
         let color: id = msg_send![class!(UIColor),
             colorWithRed: r green: g blue: b alpha: a

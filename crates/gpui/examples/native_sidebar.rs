@@ -1,7 +1,7 @@
 use gpui::{
-    actions, div, native_sidebar, prelude::*, px, size, App, Bounds, Context, FocusHandle,
-    Focusable, KeyBinding, Menu, MenuItem, NativeSidebarHeaderButton, Window, WindowBounds,
-    WindowOptions,
+    App, Bounds, Context, FocusHandle, Focusable, KeyBinding, Menu, MenuItem,
+    NativeSidebarHeaderButton, Window, WindowBounds, WindowOptions, actions, div, native_sidebar,
+    prelude::*, px, size,
 };
 
 actions!(native_sidebar_example, [ToggleSidebar]);

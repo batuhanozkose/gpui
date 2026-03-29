@@ -1,8 +1,7 @@
 use gpui::{
     App, Bounds, Context, NativeColor, NativeToolbar, NativeToolbarButton, NativeToolbarClickEvent,
-    NativeToolbarDisplayMode, NativeToolbarItem, NativeToolbarItemStyle, Window,
-    WindowAppearance, WindowBounds, WindowOptions, WindowToolbarStyle, div, prelude::*, px, rgb,
-    size,
+    NativeToolbarDisplayMode, NativeToolbarItem, NativeToolbarItemStyle, Window, WindowAppearance,
+    WindowBounds, WindowOptions, WindowToolbarStyle, div, prelude::*, px, rgb, size,
 };
 
 struct PreferenceToolbarExample {
@@ -110,20 +109,15 @@ impl Render for PreferenceToolbarExample {
                     .text_color(muted)
                     .child("Preference style works best for top-level settings sections."),
             )
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(muted)
-                    .child(format!(
-                        "Selected section: {}",
-                        match self.selected_index {
-                            0 => "General",
-                            1 => "Accounts",
-                            2 => "Updates",
-                            _ => "Advanced",
-                        }
-                    )),
-            )
+            .child(div().text_sm().text_color(muted).child(format!(
+                "Selected section: {}",
+                match self.selected_index {
+                    0 => "General",
+                    1 => "Accounts",
+                    2 => "Updates",
+                    _ => "Advanced",
+                }
+            )))
     }
 }
 

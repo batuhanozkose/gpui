@@ -1,7 +1,7 @@
 // UICollectionView wrapper for iOS (equivalent to NSCollectionView on macOS).
 // Simplified implementation with a flow layout.
 
-use super::{id, ns_string, CALLBACK_IVAR};
+use super::{CALLBACK_IVAR, id, ns_string};
 use ctor::ctor;
 use objc::{
     class,
@@ -25,8 +25,7 @@ static mut COLLECTION_DATA_SOURCE_CLASS: *const Class = ptr::null();
 #[ctor]
 unsafe fn build_collection_data_source_class() {
     unsafe {
-        let mut decl =
-            ClassDecl::new("GPUIiOSCollectionDataSource", class!(NSObject)).unwrap();
+        let mut decl = ClassDecl::new("GPUIiOSCollectionDataSource", class!(NSObject)).unwrap();
         decl.add_ivar::<*mut c_void>(DATA_IVAR);
         decl.add_ivar::<*mut c_void>(CALLBACK_IVAR);
 

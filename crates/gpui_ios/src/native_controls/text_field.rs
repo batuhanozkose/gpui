@@ -1,4 +1,7 @@
-use super::{id, ns_string, UI_CONTROL_EVENT_EDITING_CHANGED, UI_CONTROL_EVENT_EDITING_DID_BEGIN, UI_CONTROL_EVENT_EDITING_DID_END, UI_CONTROL_EVENT_EDITING_DID_END_ON_EXIT};
+use super::{
+    UI_CONTROL_EVENT_EDITING_CHANGED, UI_CONTROL_EVENT_EDITING_DID_BEGIN,
+    UI_CONTROL_EVENT_EDITING_DID_END, UI_CONTROL_EVENT_EDITING_DID_END_ON_EXIT, id, ns_string,
+};
 use ctor::ctor;
 use objc::{
     class,
@@ -62,7 +65,9 @@ extern "C" fn text_changed(this: &Object, _sel: Sel, sender: id) {
                 let value = if utf8.is_null() {
                     String::new()
                 } else {
-                    std::ffi::CStr::from_ptr(utf8).to_string_lossy().into_owned()
+                    std::ffi::CStr::from_ptr(utf8)
+                        .to_string_lossy()
+                        .into_owned()
                 };
                 on_change(value);
             }
@@ -155,7 +160,9 @@ pub(crate) unsafe fn get_native_text_field_string_value(field: id) -> String {
         if utf8.is_null() {
             String::new()
         } else {
-            std::ffi::CStr::from_ptr(utf8).to_string_lossy().into_owned()
+            std::ffi::CStr::from_ptr(utf8)
+                .to_string_lossy()
+                .into_owned()
         }
     }
 }
@@ -200,7 +207,11 @@ pub(crate) unsafe fn set_native_text_field_delegate(
         let target: id = msg_send![TEXT_FIELD_TARGET_CLASS, alloc];
         let target: id = msg_send![target, init];
 
-        let _ = (&callbacks.on_move_up, &callbacks.on_move_down, &callbacks.on_cancel);
+        let _ = (
+            &callbacks.on_move_up,
+            &callbacks.on_move_down,
+            &callbacks.on_cancel,
+        );
         let callbacks_ptr = Box::into_raw(Box::new(callbacks)) as *mut c_void;
         (*target).set_ivar::<*mut c_void>(CALLBACKS_IVAR, callbacks_ptr);
 

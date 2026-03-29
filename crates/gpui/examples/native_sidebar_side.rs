@@ -1,6 +1,6 @@
 use gpui::{
-    div, native_sidebar, prelude::*, px, rgb, size, App, Bounds, Context, Entity, Window,
-    WindowAppearance, WindowBounds, WindowOptions,
+    App, Bounds, Context, Entity, Window, WindowAppearance, WindowBounds, WindowOptions, div,
+    native_sidebar, prelude::*, px, rgb, size,
 };
 
 struct SidebarPanel;

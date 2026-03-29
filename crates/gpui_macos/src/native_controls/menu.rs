@@ -373,8 +373,13 @@ extern "C" fn popup_menu_trampoline(context: *mut c_void) {
     unsafe {
         let ctx = Box::from_raw(context as *mut DeferredPopupContext);
 
-        let parent_frame: NSRect = msg_send![ctx.view, frame];
-        let ns_point = NSPoint::new(ctx.gpui_x, parent_frame.size.height - ctx.gpui_y);
+        let is_flipped: i8 = msg_send![ctx.view, isFlipped];
+        let bounds: NSRect = msg_send![ctx.view, bounds];
+        let ns_point = if is_flipped != 0 {
+            NSPoint::new(ctx.gpui_x, ctx.gpui_y)
+        } else {
+            NSPoint::new(ctx.gpui_x, bounds.size.height - ctx.gpui_y)
+        };
 
         let _: i8 = msg_send![
             ctx.menu,

@@ -2,7 +2,7 @@
 // This is a simplified implementation that creates a basic UITableView
 // with a data source pattern matching the macOS NSTableView wrapper.
 
-use super::{id, nil, ns_string, CALLBACK_IVAR};
+use super::{CALLBACK_IVAR, id, nil, ns_string};
 use ctor::ctor;
 use objc::{
     class,
@@ -151,7 +151,8 @@ pub(crate) unsafe fn set_native_table_items(
         } else {
             let selected_path: id = msg_send![table, indexPathForSelectedRow];
             if selected_path != nil {
-                let _: () = msg_send![table, deselectRowAtIndexPath: selected_path animated: false as i8];
+                let _: () =
+                    msg_send![table, deselectRowAtIndexPath: selected_path animated: false as i8];
             }
         }
 

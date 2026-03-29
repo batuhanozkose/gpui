@@ -1,4 +1,4 @@
-use super::{id, ns_string, CALLBACK_IVAR, UI_CONTROL_EVENT_VALUE_CHANGED};
+use super::{CALLBACK_IVAR, UI_CONTROL_EVENT_VALUE_CHANGED, id, ns_string};
 use ctor::ctor;
 use objc::{
     class,

@@ -1,9 +1,10 @@
 use gpui::{
-    App, Bounds, Context, FocusHandle, Focusable, Menu, MenuItem, MouseButton, MouseDownEvent,
-    NativePanel, NativePanelAnchor, NativePanelLevel, NativePanelMaterial, NativePanelStyle,
-    NativeSegmentedStyle, SegmentSelectEvent, Window, WindowAppearance, WindowBounds,
-    WindowOptions, actions, div, native_sidebar, native_toggle_group, prelude::*, px, rgb,
-    size,
+    AnchoredPositionMode, App, Bounds, Context, Corner, FocusHandle, Focusable, Menu, MenuItem,
+    MouseButton, MouseDownEvent, NativeMenuItem, NativePanel, NativePanelAnchor, NativePanelLevel,
+    NativePanelMaterial, NativePanelStyle, NativePopover, NativePopoverAnchor,
+    NativePopoverBehavior, NativeSegmentedStyle, SegmentSelectEvent, Window, WindowAppearance,
+    WindowBounds, WindowOptions, actions, anchored, deferred, div, native_sidebar,
+    native_toggle_group, prelude::*, px, rgb, show_native_popup_menu, size,
 };
 
 actions!(native_sidebar_gpui_overlays, [ToggleSidebar]);
@@ -35,6 +36,14 @@ struct SidebarOverlayPanel {
     status: String,
     focus_handle: FocusHandle,
     menu_view: gpui::Entity<SidebarHostedMenu>,
+    gpui_overlay: Option<GpuiOverlayState>,
+}
+
+struct GpuiOverlayState {
+    title: String,
+    subject: String,
+    items: Vec<(String, String)>,
+    position: gpui::Point<gpui::Pixels>,
 }
 
 impl SidebarOverlayPanel {
@@ -106,26 +115,82 @@ impl SidebarOverlayPanel {
             cx.notify();
         });
 
-        let window_bounds = window.bounds();
-        let anchor_x = (window_bounds.origin.x + position.x + px(6.0)).as_f32() as f64;
-        let anchor_y = (window_bounds.origin.y + position.y + px(6.0)).as_f32() as f64;
+        let anchor_position = gpui::point(position.x + px(6.0), position.y + px(6.0));
 
+        window.dismiss_native_popover();
         window.dismiss_native_panel();
-        window.show_native_panel(
-            NativePanel::new(260.0, 170.0)
-                .style(NativePanelStyle::Borderless)
-                .level(NativePanelLevel::PopUpMenu)
-                .transient(true)
-                .material(NativePanelMaterial::Popover)
-                .corner_radius(10.0)
-                .content_view(self.menu_view.clone()),
-            NativePanelAnchor::Point {
-                x: anchor_x,
-                y: anchor_y,
-            },
-        );
+        if kind == OverlayKind::Popover {
+            window.show_native_popover(
+                NativePopover::new(260.0, 170.0)
+                    .behavior(NativePopoverBehavior::Semitransient)
+                    .content_view(self.menu_view.clone()),
+                NativePopoverAnchor::ViewPoint(anchor_position),
+            );
+        } else {
+            window.show_native_panel(
+                NativePanel::new(260.0, 170.0)
+                    .style(NativePanelStyle::Borderless)
+                    .level(NativePanelLevel::PopUpMenu)
+                    .transient(true)
+                    .material(NativePanelMaterial::Popover)
+                    .corner_radius(10.0)
+                    .content_view(self.menu_view.clone()),
+                NativePanelAnchor::ViewPoint(anchor_position),
+            );
+        }
 
         self.status = format!("Opened {:?}.", kind);
+        cx.notify();
+    }
+
+    fn open_native_context_menu(
+        &mut self,
+        position: gpui::Point<gpui::Pixels>,
+        subject: &'static str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let owner = cx.entity().downgrade();
+        let menu_items = vec![
+            NativeMenuItem::action("Open"),
+            NativeMenuItem::action("Rename"),
+            NativeMenuItem::separator(),
+            NativeMenuItem::action("Reveal in Finder"),
+        ];
+
+        show_native_popup_menu(
+            &menu_items,
+            position,
+            window,
+            cx,
+            move |action_index, _, cx| {
+                let _ = owner.update(cx, |this, cx| {
+                    this.status = format!("Native menu on {subject}: action #{action_index}");
+                    cx.notify();
+                });
+            },
+        );
+    }
+
+    fn open_gpui_overlay(
+        &mut self,
+        kind: OverlayKind,
+        position: gpui::Point<gpui::Pixels>,
+        subject: impl Into<String>,
+        cx: &mut Context<Self>,
+    ) {
+        let subject = subject.into();
+        let (title, items) = Self::overlay_spec(kind);
+        self.gpui_overlay = Some(GpuiOverlayState {
+            title: title.to_string(),
+            subject,
+            items: items
+                .into_iter()
+                .map(|(item, detail)| (item.to_string(), detail.to_string()))
+                .collect(),
+            position: gpui::point(position.x + px(6.0), position.y + px(6.0)),
+        });
+        self.status = format!("Opened GPUI {:?}.", kind);
         cx.notify();
     }
 
@@ -152,8 +217,8 @@ impl SidebarOverlayPanel {
             .hover(move |style| style.bg(hover))
             .on_mouse_down(
                 MouseButton::Left,
-                cx.listener(move |this, event: &MouseDownEvent, window, cx| {
-                    this.open_overlay(overlay, event.position, title, window, cx);
+                cx.listener(move |this, event: &MouseDownEvent, _, cx| {
+                    this.open_gpui_overlay(overlay, event.position, title, cx);
                 }),
             )
             .child(
@@ -164,12 +229,7 @@ impl SidebarOverlayPanel {
                     .gap_0p5()
                     .overflow_hidden()
                     .child(div().text_sm().truncate().child(title))
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(rgb(0x7f7f84))
-                            .child(detail),
-                    ),
+                    .child(div().text_xs().text_color(rgb(0x7f7f84)).child(detail)),
             )
             .child(div().text_xs().text_color(rgb(0x7f7f84)).child("GPUI"))
     }
@@ -201,12 +261,19 @@ impl SidebarOverlayPanel {
             )
             .on_mouse_down(
                 MouseButton::Right,
-                cx.listener(move |this, event: &MouseDownEvent, window, cx| {
-                    this.open_overlay(OverlayKind::ContextMenu, event.position, label, window, cx);
+                cx.listener(move |this, event: &MouseDownEvent, _, cx| {
+                    this.open_gpui_overlay(OverlayKind::ContextMenu, event.position, label, cx);
                 }),
             )
             .child(div().w(px((depth * 14) as f32)))
-            .child(div().flex_grow().overflow_hidden().text_sm().truncate().child(label))
+            .child(
+                div()
+                    .flex_grow()
+                    .overflow_hidden()
+                    .text_sm()
+                    .truncate()
+                    .child(label),
+            )
     }
 
     fn render_triggers_tab(
@@ -230,7 +297,7 @@ impl SidebarOverlayPanel {
                 div()
                     .text_xs()
                     .text_color(muted)
-                    .child("Each trigger below renders a non-native GPUI surface inside the native sidebar host."),
+                    .child("Each trigger below renders actual non-native GPUI overlays from the hosted sidebar surface."),
             )
             .child(self.render_trigger_row(
                 "popover-trigger",
@@ -286,12 +353,11 @@ impl SidebarOverlayPanel {
                             .hover(move |style| style.bg(hover))
                             .on_mouse_down(
                                 MouseButton::Left,
-                                cx.listener(|this, event: &MouseDownEvent, window, cx| {
-                                    this.open_overlay(
+                                cx.listener(|this, event: &MouseDownEvent, _, cx| {
+                                    this.open_gpui_overlay(
                                         OverlayKind::EllipsisMenu,
                                         event.position,
                                         "Ellipsis",
-                                        window,
                                         cx,
                                     );
                                 }),
@@ -322,12 +388,45 @@ impl SidebarOverlayPanel {
                 div()
                     .text_xs()
                     .text_color(muted)
-                    .child("Right click any row to open a GPUI context menu in the hosted sidebar surface."),
+                    .child("Right click rows to validate both GPUI-hosted overlays and native popup-menu positioning inside the hosted sidebar surface."),
             )
             .child(self.render_file_row("file-src", "src", 0, hover, cx))
             .child(self.render_file_row("file-browser", "browser.rs", 1, hover, cx))
             .child(self.render_file_row("file-toolbar", "native_toolbar.rs", 1, hover, cx))
             .child(self.render_file_row("file-sidebar", "native_sidebar_gpui_overlays.rs", 1, hover, cx))
+            .child(
+                div()
+                    .id("native-menu-row")
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .px_2()
+                    .py_1()
+                    .rounded(px(6.0))
+                    .cursor_pointer()
+                    .hover(move |style| style.bg(hover))
+                    .on_mouse_down(
+                        MouseButton::Right,
+                        cx.listener(|this, event: &MouseDownEvent, window, cx| {
+                            this.open_native_context_menu(
+                                event.position,
+                                "native-menu-row",
+                                window,
+                                cx,
+                            );
+                        }),
+                    )
+                    .child(div().w(px(14.0)))
+                    .child(
+                        div()
+                            .flex_grow()
+                            .overflow_hidden()
+                            .text_sm()
+                            .truncate()
+                            .child("native_menu_validation.rs"),
+                    )
+                    .child(div().text_xs().text_color(muted).child("native")),
+            )
     }
 
     fn render_notes_tab(
@@ -367,12 +466,11 @@ impl SidebarOverlayPanel {
                     .hover(move |style| style.bg(hover))
                     .on_mouse_down(
                         MouseButton::Left,
-                        cx.listener(|this, event: &MouseDownEvent, window, cx| {
-                            this.open_overlay(
+                        cx.listener(|this, event: &MouseDownEvent, _, cx| {
+                            this.open_gpui_overlay(
                                 OverlayKind::NoteMenu,
                                 event.position,
                                 "Meeting notes.md",
-                                window,
                                 cx,
                             );
                         }),
@@ -396,20 +494,80 @@ impl Render for SidebarOverlayPanel {
         );
 
         let (fg, muted, border, hover) = if is_dark {
-            (
-                rgb(0xffffff),
-                rgb(0xa1a1aa),
-                rgb(0x3a3a3c),
-                rgb(0x4a4a4e),
-            )
+            (rgb(0xffffff), rgb(0xa1a1aa), rgb(0x3a3a3c), rgb(0x4a4a4e))
         } else {
-            (
-                rgb(0x111418),
-                rgb(0x6b7280),
-                rgb(0xd4d4d8),
-                rgb(0xc7d2fe),
-            )
+            (rgb(0x111418), rgb(0x6b7280), rgb(0xd4d4d8), rgb(0xc7d2fe))
         };
+
+        let overlay = self.gpui_overlay.as_ref().map(|overlay| {
+            let title = overlay.title.clone();
+            let subject = overlay.subject.clone();
+            let items = overlay.items.clone();
+            let position = overlay.position;
+
+            deferred(
+                anchored()
+                    .position_mode(AnchoredPositionMode::Local)
+                    .position(position)
+                    .anchor(Corner::TopLeft)
+                    .snap_to_window_with_margin(px(8.0))
+                    .child(
+                        div()
+                            .id("sidebar-gpui-overlay")
+                            .w(px(260.0))
+                            .p_2()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .bg(rgb(0xf6f6f8))
+                            .border_1()
+                            .border_color(rgb(0xc7d2fe))
+                            .rounded(px(10.0))
+                            .shadow_lg()
+                            .text_color(rgb(0x111418))
+                            .on_mouse_down_out(cx.listener(|this, _, _, cx| {
+                                this.gpui_overlay = None;
+                                cx.notify();
+                            }))
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .font_weight(gpui::FontWeight::BOLD)
+                                    .child(title),
+                            )
+                            .when(!subject.is_empty(), |this| {
+                                this.child(div().text_xs().text_color(rgb(0x6f6f75)).child(subject))
+                            })
+                            .child(div().h(px(1.0)).w_full().bg(rgb(0xc7d2fe)))
+                            .children(items.into_iter().enumerate().map(
+                                |(index, (label, detail))| {
+                                    let selected_label = label.clone();
+                                    div()
+                                        .id(("gpui-overlay-item", index))
+                                        .flex()
+                                        .flex_col()
+                                        .gap_0p5()
+                                        .px_3()
+                                        .py_2()
+                                        .rounded(px(6.0))
+                                        .cursor_pointer()
+                                        .hover(|style| style.bg(rgb(0xc7d2fe)))
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.status = format!("Selected {selected_label}");
+                                            this.gpui_overlay = None;
+                                            cx.notify();
+                                        }))
+                                        .child(div().text_sm().child(label))
+                                        .child(
+                                            div().text_xs().text_color(rgb(0x6f6f75)).child(detail),
+                                        )
+                                },
+                            )),
+                    ),
+            )
+            .window_overlay()
+            .with_priority(1)
+        });
 
         div()
             .flex()
@@ -418,26 +576,24 @@ impl Render for SidebarOverlayPanel {
             .text_color(fg)
             .track_focus(&self.focus_handle)
             .child(
-                div()
-                    .pt(px(8.0))
-                    .pb(px(4.0))
-                    .flex()
-                    .justify_center()
-                    .child(
-                        native_toggle_group("sidebar-overlay-tabs", &SidebarTab::LABELS)
-                            .sf_symbols(&SidebarTab::ICONS)
-                            .selected_index(self.active_tab)
-                            .segment_style(NativeSegmentedStyle::Automatic)
-                            .on_select(cx.listener(|this, event: &SegmentSelectEvent, window, cx| {
-                                this.active_tab = event.index;
-                                window.dismiss_native_panel();
-                                cx.notify();
-                            })),
-                    ),
+                div().pt(px(8.0)).pb(px(4.0)).flex().justify_center().child(
+                    native_toggle_group("sidebar-overlay-tabs", &SidebarTab::LABELS)
+                        .sf_symbols(&SidebarTab::ICONS)
+                        .selected_index(self.active_tab)
+                        .segment_style(NativeSegmentedStyle::Automatic)
+                        .on_select(cx.listener(|this, event: &SegmentSelectEvent, window, cx| {
+                            this.active_tab = event.index;
+                            window.dismiss_native_popover();
+                            window.dismiss_native_panel();
+                            cx.notify();
+                        })),
+                ),
             )
             .child(div().h(px(1.0)).w_full().bg(border))
             .child(match SidebarTab::ALL[self.active_tab] {
-                SidebarTab::Triggers => self.render_triggers_tab(muted, hover, cx).into_any_element(),
+                SidebarTab::Triggers => self
+                    .render_triggers_tab(muted, hover, cx)
+                    .into_any_element(),
                 SidebarTab::Files => self.render_files_tab(muted, hover, cx).into_any_element(),
                 SidebarTab::Notes => self.render_notes_tab(muted, hover, cx).into_any_element(),
             })
@@ -451,6 +607,7 @@ impl Render for SidebarOverlayPanel {
                     .text_color(muted)
                     .child(format!("Status: {}", self.status)),
             )
+            .when_some(overlay, |this, overlay| this.child(overlay))
     }
 }
 
@@ -519,12 +676,14 @@ impl Render for SidebarHostedMenu {
                     .hover(|style| style.bg(rgb(0xc7d2fe)))
                     .on_click(move |_, window, cx| {
                         if let Some(owner) = owner.as_ref() {
-                            owner.update(cx, |sidebar, cx| {
-                                sidebar.status = format!("Selected {selected_title}");
-                                cx.notify();
-                            })
-                            .ok();
+                            owner
+                                .update(cx, |sidebar, cx| {
+                                    sidebar.status = format!("Selected {selected_title}");
+                                    cx.notify();
+                                })
+                                .ok();
                         }
+                        window.dismiss_native_popover();
                         window.dismiss_native_panel();
                     })
                     .child(div().text_sm().child(title))
@@ -544,19 +703,9 @@ impl Render for NativeSidebarGpuiOverlaysExample {
         );
 
         let (bg, fg, muted, border) = if is_dark {
-            (
-                rgb(0x18181b),
-                rgb(0xffffff),
-                rgb(0xa1a1aa),
-                rgb(0x3a3a3c),
-            )
+            (rgb(0x18181b), rgb(0xffffff), rgb(0xa1a1aa), rgb(0x3a3a3c))
         } else {
-            (
-                rgb(0xf8fafc),
-                rgb(0x111418),
-                rgb(0x6b7280),
-                rgb(0xd4d4d8),
-            )
+            (rgb(0xf8fafc), rgb(0x111418), rgb(0x6b7280), rgb(0xd4d4d8))
         };
 
         div()
@@ -603,7 +752,7 @@ impl Render for NativeSidebarGpuiOverlaysExample {
                             .max_w(px(520.0))
                             .text_sm()
                             .text_color(muted)
-                            .child("Test these cases in the sidebar: left-click popover, left-click action menu, ellipsis trigger, and right-click file tree context menu."),
+                            .child("Test these cases in the sidebar: left-click native popover, left-click GPUI panel menus, right-click GPUI hosted menu, and right-click native popup menu."),
                     )
                     .child(
                         div()
@@ -651,6 +800,7 @@ fn main() {
                         items: Vec::new(),
                         owner: None,
                     }),
+                    gpui_overlay: None,
                 });
 
                 cx.new(|cx| {

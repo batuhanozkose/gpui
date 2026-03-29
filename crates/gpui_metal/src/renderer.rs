@@ -1,4 +1,6 @@
 use crate::atlas::MetalAtlas;
+use anyhow::Result;
+use block::ConcreteBlock;
 use gpui::{
     AtlasTextureId, Background, Bounds, ContentMask, DevicePixels, MonochromeSprite, Path, Point,
     PolychromeSprite, PrimitiveBatch, Quad, ScaledPixels, Scene, Shadow, Size, Underline, point,
@@ -6,8 +8,6 @@ use gpui::{
 };
 #[cfg(target_os = "macos")]
 use gpui::{PaintSurface, Surface};
-use anyhow::Result;
-use block::ConcreteBlock;
 use image::RgbaImage;
 
 #[cfg(target_os = "macos")]
@@ -93,11 +93,7 @@ impl InstanceBufferPool {
         self.buffers.clear();
     }
 
-    pub fn acquire(
-        &mut self,
-        device: &metal::Device,
-        unified_memory: bool,
-    ) -> InstanceBuffer {
+    pub fn acquire(&mut self, device: &metal::Device, unified_memory: bool) -> InstanceBuffer {
         let buffer = self.buffers.pop().unwrap_or_else(|| {
             let options = if unified_memory {
                 MTLResourceOptions::StorageModeShared
@@ -268,7 +264,8 @@ impl MetalRenderer {
             unit_vertices.as_ptr() as *const c_void,
             mem::size_of_val(&unit_vertices) as u64,
             if is_unified_memory {
-                MTLResourceOptions::StorageModeShared | MTLResourceOptions::CPUCacheModeWriteCombined
+                MTLResourceOptions::StorageModeShared
+                    | MTLResourceOptions::CPUCacheModeWriteCombined
             } else {
                 MTLResourceOptions::StorageModeManaged
             },
@@ -1004,11 +1001,7 @@ fn draw_paths_to_intermediate(
             vertices_bytes_len,
         );
     }
-    command_encoder.draw_primitives(
-        metal::MTLPrimitiveType::Triangle,
-        0,
-        vertices.len() as u64,
-    );
+    command_encoder.draw_primitives(metal::MTLPrimitiveType::Triangle, 0, vertices.len() as u64);
     *instance_offset = next_offset;
 
     command_encoder.end_encoding();
@@ -1536,19 +1529,15 @@ fn draw_surfaces_batch(
                 let texture = CVMetalTextureGetTexture(y_texture.as_concrete_TypeRef());
                 Some(metal::TextureRef::from_ptr(texture as *mut _))
             });
-            command_encoder.set_fragment_texture(
-                SurfaceInputIndex::CbCrTexture as u64,
-                unsafe {
-                    let texture = CVMetalTextureGetTexture(cb_cr_texture.as_concrete_TypeRef());
-                    Some(metal::TextureRef::from_ptr(texture as *mut _))
-                },
-            );
+            command_encoder.set_fragment_texture(SurfaceInputIndex::CbCrTexture as u64, unsafe {
+                let texture = CVMetalTextureGetTexture(cb_cr_texture.as_concrete_TypeRef());
+                Some(metal::TextureRef::from_ptr(texture as *mut _))
+            });
         }
 
         unsafe {
             let buffer_contents = (instance_buffer.metal_buffer.contents() as *mut u8)
-                .add(*instance_offset)
-                as *mut SurfaceBounds;
+                .add(*instance_offset) as *mut SurfaceBounds;
             ptr::write(
                 buffer_contents,
                 SurfaceBounds {

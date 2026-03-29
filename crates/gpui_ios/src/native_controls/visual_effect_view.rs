@@ -18,13 +18,13 @@ pub(crate) unsafe fn create_native_visual_effect_view() -> id {
 pub(crate) unsafe fn set_native_visual_effect_material(view: id, material: i64) {
     unsafe {
         let style = match material {
-            0 => 0i64,  // UIBlurEffectStyleExtraLight
-            1 => 1,     // UIBlurEffectStyleLight
-            2 => 2,     // UIBlurEffectStyleDark
-            3 => 6,     // UIBlurEffectStyleSystemMaterial
-            4 => 7,     // UIBlurEffectStyleSystemThinMaterial
-            5 => 8,     // UIBlurEffectStyleSystemUltraThinMaterial
-            _ => 6,     // Default to system material
+            0 => 0i64, // UIBlurEffectStyleExtraLight
+            1 => 1,    // UIBlurEffectStyleLight
+            2 => 2,    // UIBlurEffectStyleDark
+            3 => 6,    // UIBlurEffectStyleSystemMaterial
+            4 => 7,    // UIBlurEffectStyleSystemThinMaterial
+            5 => 8,    // UIBlurEffectStyleSystemUltraThinMaterial
+            _ => 6,    // Default to system material
         };
         let effect: id = msg_send![class!(UIBlurEffect), effectWithStyle: style];
         let _: () = msg_send![view, setEffect: effect];

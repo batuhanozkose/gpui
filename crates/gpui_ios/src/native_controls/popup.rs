@@ -1,13 +1,7 @@
-use super::{id, ns_string, CALLBACK_IVAR};
+use super::{CALLBACK_IVAR, id, ns_string};
 use block::ConcreteBlock;
 use ctor::ctor;
-use objc::{
-    class,
-    declare::ClassDecl,
-    msg_send,
-    runtime::Class,
-    sel, sel_impl,
-};
+use objc::{class, declare::ClassDecl, msg_send, runtime::Class, sel, sel_impl};
 use std::{ffi::c_void, ptr};
 
 static mut POPUP_TARGET_CLASS: *const Class = ptr::null();
@@ -37,7 +31,8 @@ pub(crate) unsafe fn create_native_popup_button(items: &[&str], selected_index: 
 
         // UIAccessibility — UIButton already has UIAccessibilityTraitButton by default
         let _: () = msg_send![button, setAccessibilityLabel: ns_string(initial_title)];
-        let _: () = msg_send![button, setAccessibilityHint: ns_string("Double tap to show options")];
+        let _: () =
+            msg_send![button, setAccessibilityHint: ns_string("Double tap to show options")];
 
         button
     }
@@ -106,9 +101,7 @@ pub(crate) unsafe fn set_native_popup_selected(popup: id, index: usize) {
 }
 
 /// Sets the popup action callback.
-pub(crate) unsafe fn set_native_popup_action(
-    callback: Box<dyn Fn(usize)>,
-) -> *mut c_void {
+pub(crate) unsafe fn set_native_popup_action(callback: Box<dyn Fn(usize)>) -> *mut c_void {
     unsafe {
         let target: id = msg_send![POPUP_TARGET_CLASS, alloc];
         let target: id = msg_send![target, init];

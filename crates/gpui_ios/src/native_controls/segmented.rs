@@ -1,4 +1,4 @@
-use super::{id, ns_string, CALLBACK_IVAR, UI_CONTROL_EVENT_VALUE_CHANGED};
+use super::{CALLBACK_IVAR, UI_CONTROL_EVENT_VALUE_CHANGED, id, ns_string};
 use ctor::ctor;
 use objc::{
     class,
@@ -14,8 +14,7 @@ static mut SEGMENTED_TARGET_CLASS: *const Class = ptr::null();
 #[ctor]
 unsafe fn build_segmented_target_class() {
     unsafe {
-        let mut decl =
-            ClassDecl::new("GPUIiOSNativeSegmentedTarget", class!(NSObject)).unwrap();
+        let mut decl = ClassDecl::new("GPUIiOSNativeSegmentedTarget", class!(NSObject)).unwrap();
         decl.add_ivar::<*mut c_void>(CALLBACK_IVAR);
         decl.add_method(
             sel!(segmentAction:),

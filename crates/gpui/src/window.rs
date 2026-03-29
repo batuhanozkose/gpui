@@ -3,18 +3,19 @@ use crate::Inspector;
 use crate::{
     Action, AnyDrag, AnyElement, AnyImageCache, AnyTooltip, AnyView, App, AppContext, Arena, Asset,
     AsyncWindowContext, AvailableSpace, Background, BorderStyle, Bounds, BoxShadow, Capslock,
-    Context, Corners, CursorStyle, Decorations, DevicePixels, DispatchActionListener,
-    DispatchNodeId, DispatchTree, DisplayId, Edges, Effect, Entity, EntityId, EventEmitter,
-    FileDropEvent, FontId, Global, GlobalElementId, GlyphId, GpuSpecs, Hsla, InputHandler, IsZero,
-    KeyBinding, KeyContext, KeyDownEvent, KeyEvent, Keystroke, KeystrokeEvent, LayoutId,
-    LineLayoutIndex, Modifiers, ModifiersChangedEvent, MonochromeSprite, MouseButton, MouseEvent,
-    MouseMoveEvent, MouseUpEvent, Path, Pixels, PlatformAtlas, PlatformDisplay, PlatformInput,
-    PlatformInputHandler, PlatformNativeAlert, PlatformNativeAlertStyle, PlatformNativeColor,
-    PlatformNativePanel, PlatformNativePanelAnchor, PlatformNativePanelLevel,
-    PlatformNativePanelMaterial, PlatformNativePanelStyle, PlatformNativePopover,
-    PlatformNativePopoverAnchor, PlatformNativePopoverBehavior, PlatformNativePopoverContentItem,
-    PlatformNativeSearchFieldTarget, PlatformNativeSearchSuggestionMenu, PlatformNativeToolbar,
-    PlatformNativeToolbarBadge, PlatformNativeToolbarButtonItem, PlatformNativeToolbarComboBoxItem,
+    Context, Corners, CursorStyle, Decorations, DeferredTarget, DevicePixels,
+    DispatchActionListener, DispatchNodeId, DispatchTree, DisplayId, Edges, Effect, Entity,
+    EntityId, EventEmitter, FileDropEvent, FontId, Global, GlobalElementId, GlyphId, GpuSpecs,
+    Hsla, InputHandler, IsZero, KeyBinding, KeyContext, KeyDownEvent, KeyEvent, Keystroke,
+    KeystrokeEvent, LayoutId, LineLayoutIndex, Modifiers, ModifiersChangedEvent, MonochromeSprite,
+    MouseButton, MouseEvent, MouseMoveEvent, MouseUpEvent, Path, Pixels, PlatformAtlas,
+    PlatformDisplay, PlatformInput, PlatformInputHandler, PlatformNativeAlert,
+    PlatformNativeAlertStyle, PlatformNativeColor, PlatformNativePanel, PlatformNativePanelAnchor,
+    PlatformNativePanelLevel, PlatformNativePanelMaterial, PlatformNativePanelStyle,
+    PlatformNativePopover, PlatformNativePopoverAnchor, PlatformNativePopoverBehavior,
+    PlatformNativePopoverContentItem, PlatformNativeSearchFieldTarget,
+    PlatformNativeSearchSuggestionMenu, PlatformNativeToolbar, PlatformNativeToolbarBadge,
+    PlatformNativeToolbarButtonItem, PlatformNativeToolbarComboBoxItem,
     PlatformNativeToolbarControlGroupItem, PlatformNativeToolbarDisplayMode,
     PlatformNativeToolbarGroupControlRepresentation, PlatformNativeToolbarGroupSelectionMode,
     PlatformNativeToolbarItem, PlatformNativeToolbarItemStyle, PlatformNativeToolbarLabelItem,
@@ -29,7 +30,7 @@ use crate::{
     TaffyLayoutEngine, Task, TextRenderingMode, TextStyle, TextStyleRefinement, ThermalState,
     TransformationMatrix, Underline, UnderlineStyle, WindowAppearance, WindowBackgroundAppearance,
     WindowBounds, WindowControls, WindowDecorations, WindowOptions, WindowParams,
-    WindowTabbingMode, WindowTextSystem, point, prelude::*, px, rems, size, transparent_black,
+    WindowTabbingMode, WindowTextSystem, div, point, prelude::*, px, rems, size, transparent_black,
 };
 use anyhow::{Context as _, Result, anyhow};
 use collections::{FxHashMap, FxHashSet};
@@ -118,6 +119,16 @@ pub(crate) struct SurfaceState {
     pub hitboxes: Vec<Hitbox>,
     pub mouse_position: Point<Pixels>,
     pub mouse_hit_test: HitTest,
+}
+
+#[cfg(target_os = "macos")]
+struct WindowOverlaySurfaceRoot;
+
+#[cfg(target_os = "macos")]
+impl Render for WindowOverlaySurfaceRoot {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        div().size_full()
+    }
 }
 
 /// Default window size used when no explicit size is provided.
@@ -2458,6 +2469,11 @@ pub enum NativePopoverAnchor {
     ToolbarItem(SharedString),
     /// Anchor the popover to a native content element with the given identifier.
     ContentElement(SharedString),
+    /// Anchor the popover to a point in the current native view's coordinate space.
+    ///
+    /// This is useful from hosted surfaces such as native sidebar content, where
+    /// event positions are local to the surface rather than the main window view.
+    ViewPoint(Point<Pixels>),
 }
 
 /// A named color for use in native popover content items.
@@ -2978,6 +2994,11 @@ impl NativePopover {
             NativePopoverAnchor::ContentElement(id) => {
                 PlatformNativePopoverAnchor::ContentElement(id.clone())
             }
+            NativePopoverAnchor::ViewPoint(position) => PlatformNativePopoverAnchor::ViewPoint {
+                view: std::ptr::null_mut(),
+                x: position.x.0 as f64,
+                y: position.y.0 as f64,
+            },
         };
 
         (
@@ -3155,6 +3176,11 @@ pub enum NativePanelAnchor {
         /// Y coordinate in screen pixels.
         y: f64,
     },
+    /// Position at a point in the current native view's coordinate space.
+    ///
+    /// This is useful from hosted surfaces such as native sidebar content, where
+    /// event positions are local to the surface rather than the main window view.
+    ViewPoint(Point<Pixels>),
     /// Center on screen.
     Centered,
 }
@@ -3318,6 +3344,11 @@ impl NativePanel {
         let platform_anchor = match anchor {
             NativePanelAnchor::ToolbarItem(id) => PlatformNativePanelAnchor::ToolbarItem(id),
             NativePanelAnchor::Point { x, y } => PlatformNativePanelAnchor::Point { x, y },
+            NativePanelAnchor::ViewPoint(position) => PlatformNativePanelAnchor::ViewPoint {
+                view: std::ptr::null_mut(),
+                x: position.x.0 as f64,
+                y: position.y.0 as f64,
+            },
             NativePanelAnchor::Centered => PlatformNativePanelAnchor::Centered,
         };
 
@@ -3636,6 +3667,7 @@ pub(crate) struct TooltipRequest {
 pub(crate) struct DeferredDraw {
     current_view: EntityId,
     priority: usize,
+    target: DeferredTarget,
     parent_node: DispatchNodeId,
     element_id_stack: SmallVec<[ElementId; 32]>,
     text_style_stack: Vec<TextStyleRefinement>,
@@ -3643,6 +3675,8 @@ pub(crate) struct DeferredDraw {
     rem_size: Pixels,
     element: Option<AnyElement>,
     absolute_offset: Point<Pixels>,
+    #[cfg(target_os = "macos")]
+    source_surface_id: Option<SurfaceId>,
     prepaint_range: Range<PrepaintStateIndex>,
     paint_range: Range<PaintIndex>,
 }
@@ -3875,6 +3909,18 @@ pub struct Window {
     /// native controls (NativeButton, NativeToggleGroup, etc.) work inside surfaces
     /// with zero changes.
     native_view_override_stack: Vec<*mut std::ffi::c_void>,
+    /// Native view pointer for the event currently being dispatched.
+    ///
+    /// This lets event-driven helpers resolve coordinates relative to the
+    /// surface that produced the event instead of always falling back to the
+    /// main window content view.
+    current_event_native_view_ptr: Option<*mut std::ffi::c_void>,
+    #[cfg(target_os = "macos")]
+    current_surface_id: Option<SurfaceId>,
+    #[cfg(target_os = "macos")]
+    overlay_surface_id: Option<SurfaceId>,
+    #[cfg(target_os = "macos")]
+    overlay_surface_root: AnyView,
     /// Secondary GPUI rendering surfaces, each with their own Metal layer and element tree.
     #[cfg(target_os = "macos")]
     pub(crate) surfaces: FxHashMap<SurfaceId, SurfaceState>,
@@ -4461,6 +4507,9 @@ impl Window {
 
         platform_window.map_window().unwrap();
 
+        #[cfg(target_os = "macos")]
+        let overlay_surface_root = AnyView::from(cx.new(|_| WindowOverlaySurfaceRoot));
+
         Ok(Window {
             handle,
             invalidator,
@@ -4520,6 +4569,13 @@ impl Window {
             #[cfg(any(feature = "inspector", debug_assertions))]
             inspector: None,
             native_view_override_stack: Vec::new(),
+            current_event_native_view_ptr: None,
+            #[cfg(target_os = "macos")]
+            current_surface_id: None,
+            #[cfg(target_os = "macos")]
+            overlay_surface_id: None,
+            #[cfg(target_os = "macos")]
+            overlay_surface_root,
             #[cfg(target_os = "macos")]
             surfaces: FxHashMap::default(),
             #[cfg(target_os = "macos")]
@@ -5071,6 +5127,22 @@ impl Window {
         self.viewport_size
     }
 
+    /// Returns the current mouse position in window coordinates.
+    ///
+    /// During hosted-surface event dispatch on macOS, `mouse_position()` is
+    /// surface-local. This method translates that temporary local position back
+    /// into the containing window's coordinate space.
+    pub fn mouse_position_in_window(&self) -> Point<Pixels> {
+        #[cfg(target_os = "macos")]
+        if let Some(event_view) = self.current_event_native_view_ptr
+            && let Some(bounds) = self.platform_window.view_bounds_in_window(event_view)
+        {
+            return bounds.origin + self.mouse_position;
+        }
+
+        self.mouse_position
+    }
+
     /// Returns the safe area insets for this window.
     ///
     /// On iOS, these describe how much to inset content from each edge to avoid
@@ -5319,6 +5391,16 @@ impl Window {
                 self.next_frame_callbacks.clone(),
                 self.invalidator.clone(),
             );
+        let platform_anchor = match platform_anchor {
+            PlatformNativePopoverAnchor::ViewPoint { x, y, .. } => {
+                PlatformNativePopoverAnchor::ViewPoint {
+                    view: self.raw_native_view_ptr(),
+                    x,
+                    y,
+                }
+            }
+            anchor => anchor,
+        };
         #[cfg(target_os = "macos")]
         {
             if let Some(handle) =
@@ -5355,6 +5437,16 @@ impl Window {
             self.next_frame_callbacks.clone(),
             self.invalidator.clone(),
         );
+        let platform_anchor = match platform_anchor {
+            PlatformNativePanelAnchor::ViewPoint { x, y, .. } => {
+                PlatformNativePanelAnchor::ViewPoint {
+                    view: self.raw_native_view_ptr(),
+                    x,
+                    y,
+                }
+            }
+            anchor => anchor,
+        };
         #[cfg(target_os = "macos")]
         {
             if let Some(handle) = self.prepare_hosted_surface(HostedSurfaceSlot::Panel, hosted_view)
@@ -5488,6 +5580,8 @@ impl Window {
     pub fn raw_native_view_ptr(&self) -> *mut std::ffi::c_void {
         if let Some(&override_ptr) = self.native_view_override_stack.last() {
             override_ptr
+        } else if let Some(event_ptr) = self.current_event_native_view_ptr {
+            event_ptr
         } else {
             self.platform_window.raw_native_view_ptr()
         }
@@ -5599,6 +5693,9 @@ impl Window {
     #[cfg(target_os = "macos")]
     pub fn unregister_surface(&mut self, id: SurfaceId) {
         self.surfaces.remove(&id);
+        if self.overlay_surface_id == Some(id) {
+            self.overlay_surface_id = None;
+        }
     }
 
     /// Get the native view pointer for a registered surface.
@@ -5613,6 +5710,21 @@ impl Window {
         if let Some(surface) = self.surfaces.get_mut(&id) {
             surface.dirty = true;
         }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn ensure_overlay_surface(&mut self) -> SurfaceId {
+        if let Some(id) = self.overlay_surface_id {
+            return id;
+        }
+
+        let handle = self.register_surface(self.overlay_surface_root.clone());
+        self.platform_window
+            .attach_window_overlay_surface(handle.native_view_ptr);
+        self.platform_window
+            .set_window_overlay_surface_hidden(handle.native_view_ptr, true);
+        self.overlay_surface_id = Some(handle.id);
+        handle.id
     }
 
     /// Update the root view of a registered surface and mark it dirty.
@@ -5894,7 +6006,25 @@ impl Window {
         #[cfg(target_os = "macos")]
         {
             let scale_factor = self.scale_factor;
-            for surface in self.surfaces.values_mut() {
+            let overlay_surface_id = self.overlay_surface_id;
+            for (id, surface) in self.surfaces.iter_mut() {
+                if Some(*id) == overlay_surface_id {
+                    continue;
+                }
+                let content_size = surface.surface.content_size();
+                let device_width = (content_size.width.0 * scale_factor).ceil() as i32;
+                let device_height = (content_size.height.0 * scale_factor).ceil() as i32;
+                let device_size = crate::size(
+                    crate::DevicePixels(device_width),
+                    crate::DevicePixels(device_height),
+                );
+                surface.surface.set_contents_scale(scale_factor as f64);
+                surface.surface.update_drawable_size(device_size);
+                surface.surface.draw(&surface.scene);
+            }
+            if let Some(overlay_surface_id) = overlay_surface_id
+                && let Some(surface) = self.surfaces.get_mut(&overlay_surface_id)
+            {
                 let content_size = surface.surface.content_size();
                 let device_width = (content_size.width.0 * scale_factor).ceil() as i32;
                 let device_height = (content_size.height.0 * scale_factor).ceil() as i32;
@@ -5993,7 +6123,22 @@ impl Window {
     /// surface elements don't pollute the main frame's event dispatch.
     #[cfg(target_os = "macos")]
     fn draw_surfaces(&mut self, cx: &mut App) {
-        let surface_ids: Vec<SurfaceId> = self.surfaces.keys().copied().collect();
+        let overlay_surface_id = self.ensure_overlay_surface();
+        let overlay_native_view_ptr = self
+            .surface_native_view_ptr(overlay_surface_id)
+            .expect("overlay surface must have a native view");
+        let surface_ids: Vec<SurfaceId> = self
+            .surfaces
+            .keys()
+            .copied()
+            .filter(|id| *id != overlay_surface_id)
+            .collect();
+
+        let mut overlay_scene = Scene::default();
+        let mut overlay_mouse_listeners: Vec<Option<AnyMouseListener>> = Vec::new();
+        let mut overlay_hitboxes: Vec<Hitbox> = Vec::new();
+        let mut overlay_input_handlers: Vec<Option<PlatformInputHandler>> = Vec::new();
+        let mut overlay_has_content = false;
 
         for id in surface_ids {
             let surface = self.surfaces.get_mut(&id).unwrap();
@@ -6020,9 +6165,14 @@ impl Window {
             let surface_size = surface.surface.content_size();
             let native_view_ptr = surface.surface.native_view_ptr();
             let surface_mouse_position = surface.mouse_position;
+            let surface_bounds_in_window = self
+                .platform_window
+                .view_bounds_in_window(native_view_ptr)
+                .unwrap_or_else(|| Bounds::new(Point::default(), surface_size));
 
             // Push native view override so native controls parent to the surface's NSView
             self.push_native_view_override(native_view_ptr);
+            self.current_surface_id = Some(id);
 
             // Set the surface's mouse position for hit testing
             let saved_mouse_position = self.mouse_position;
@@ -6033,6 +6183,13 @@ impl Window {
             self.invalidator.set_phase(DrawPhase::Prepaint);
             let mut root_element = root_view.into_any();
             root_element.prepaint_as_root(Point::default(), surface_size.into(), self, cx);
+
+            let deferred_draws = std::mem::take(&mut self.next_frame.deferred_draws);
+            let (local_deferred_draws, mut overlay_deferred_draws): (Vec<_>, Vec<_>) =
+                deferred_draws
+                    .into_iter()
+                    .partition(|draw| draw.target == DeferredTarget::Local);
+            self.next_frame.deferred_draws = local_deferred_draws;
 
             let mut sorted_deferred_draws =
                 (0..self.next_frame.deferred_draws.len()).collect::<SmallVec<[_; 8]>>();
@@ -6073,8 +6230,67 @@ impl Window {
             root_element.paint(self, cx);
             self.paint_deferred_draws(&sorted_deferred_draws, cx);
 
+            if !overlay_deferred_draws.is_empty() {
+                overlay_has_content = true;
+                for deferred_draw in &mut overlay_deferred_draws {
+                    deferred_draw.absolute_offset += surface_bounds_in_window.origin;
+                }
+
+                let surface_scene = std::mem::replace(&mut self.next_frame.scene, overlay_scene);
+                let surface_mouse_listeners = std::mem::replace(
+                    &mut self.next_frame.mouse_listeners,
+                    overlay_mouse_listeners,
+                );
+                let surface_hitboxes =
+                    std::mem::replace(&mut self.next_frame.hitboxes, overlay_hitboxes);
+                let surface_input_handlers =
+                    std::mem::replace(&mut self.next_frame.input_handlers, overlay_input_handlers);
+                let surface_cursor_styles = std::mem::take(&mut self.next_frame.cursor_styles);
+                let surface_tooltip_requests =
+                    std::mem::take(&mut self.next_frame.tooltip_requests);
+                let surface_deferred_draws =
+                    std::mem::replace(&mut self.next_frame.deferred_draws, overlay_deferred_draws);
+
+                let overlay_saved_mouse_position = self.mouse_position;
+                let overlay_saved_mouse_hit_test = self.mouse_hit_test.clone();
+                self.mouse_position = saved_mouse_position;
+                self.mouse_hit_test = saved_mouse_hit_test.clone();
+
+                self.pop_native_view_override();
+                self.push_native_view_override(overlay_native_view_ptr);
+
+                let mut sorted_overlay_deferred_draws =
+                    (0..self.next_frame.deferred_draws.len()).collect::<SmallVec<[_; 8]>>();
+                sorted_overlay_deferred_draws
+                    .sort_by_key(|ix| self.next_frame.deferred_draws[*ix].priority);
+                self.invalidator.set_phase(DrawPhase::Prepaint);
+                self.prepaint_deferred_draws(&sorted_overlay_deferred_draws, cx);
+                self.invalidator.set_phase(DrawPhase::Paint);
+                self.paint_deferred_draws(&sorted_overlay_deferred_draws, cx);
+
+                self.pop_native_view_override();
+                self.push_native_view_override(native_view_ptr);
+
+                self.mouse_position = overlay_saved_mouse_position;
+                self.mouse_hit_test = overlay_saved_mouse_hit_test;
+
+                overlay_scene = std::mem::replace(&mut self.next_frame.scene, surface_scene);
+                overlay_mouse_listeners = std::mem::replace(
+                    &mut self.next_frame.mouse_listeners,
+                    surface_mouse_listeners,
+                );
+                overlay_hitboxes =
+                    std::mem::replace(&mut self.next_frame.hitboxes, surface_hitboxes);
+                overlay_input_handlers =
+                    std::mem::replace(&mut self.next_frame.input_handlers, surface_input_handlers);
+                self.next_frame.cursor_styles = surface_cursor_styles;
+                self.next_frame.tooltip_requests = surface_tooltip_requests;
+                self.next_frame.deferred_draws = surface_deferred_draws;
+            }
+
             // Pop native view override
             self.pop_native_view_override();
+            self.current_surface_id = None;
 
             // Restore the main window's mouse state
             self.mouse_position = saved_mouse_position;
@@ -6107,6 +6323,20 @@ impl Window {
             let surface_layout = std::mem::replace(&mut self.layout_engine, main_layout);
             surface.layout_engine = surface_layout;
         }
+
+        if let Some(overlay_surface) = self.surfaces.get_mut(&overlay_surface_id) {
+            overlay_surface.scene = overlay_scene;
+            overlay_surface.mouse_listeners = overlay_mouse_listeners;
+            overlay_surface.hitboxes = overlay_hitboxes;
+            overlay_surface.mouse_position = self.mouse_position;
+            overlay_surface.mouse_hit_test = self.next_frame.hit_test(self.mouse_position);
+            self.next_frame
+                .input_handlers
+                .extend(overlay_input_handlers);
+        }
+
+        self.platform_window
+            .set_window_overlay_surface_hidden(overlay_native_view_ptr, !overlay_has_content);
     }
 
     fn prepaint_tooltip(&mut self, cx: &mut App) -> Option<AnyElement> {
@@ -6303,14 +6533,17 @@ impl Window {
                 .iter()
                 .map(|deferred_draw| DeferredDraw {
                     current_view: deferred_draw.current_view,
+                    priority: deferred_draw.priority,
+                    target: deferred_draw.target,
                     parent_node: reused_subtree.refresh_node_id(deferred_draw.parent_node),
                     element_id_stack: deferred_draw.element_id_stack.clone(),
                     text_style_stack: deferred_draw.text_style_stack.clone(),
                     content_mask: deferred_draw.content_mask.clone(),
                     rem_size: deferred_draw.rem_size,
-                    priority: deferred_draw.priority,
                     element: None,
                     absolute_offset: deferred_draw.absolute_offset,
+                    #[cfg(target_os = "macos")]
+                    source_surface_id: deferred_draw.source_surface_id,
                     prepaint_range: deferred_draw.prepaint_range.clone(),
                     paint_range: deferred_draw.paint_range.clone(),
                 }),
@@ -6798,6 +7031,23 @@ impl Window {
         priority: usize,
         content_mask: Option<ContentMask<Pixels>>,
     ) {
+        self.defer_draw_with_target(
+            element,
+            absolute_offset,
+            priority,
+            content_mask,
+            DeferredTarget::Local,
+        );
+    }
+
+    pub fn defer_draw_with_target(
+        &mut self,
+        element: AnyElement,
+        absolute_offset: Point<Pixels>,
+        priority: usize,
+        content_mask: Option<ContentMask<Pixels>>,
+        target: DeferredTarget,
+    ) {
         self.invalidator.debug_assert_prepaint();
         let parent_node = self.next_frame.dispatch_tree.active_node_id().unwrap();
         self.next_frame.deferred_draws.push(DeferredDraw {
@@ -6808,8 +7058,11 @@ impl Window {
             content_mask,
             rem_size: self.rem_size(),
             priority,
+            target,
             element: Some(element),
             absolute_offset,
+            #[cfg(target_os = "macos")]
+            source_surface_id: self.current_surface_id,
             prepaint_range: PrepaintStateIndex::default()..PrepaintStateIndex::default(),
             paint_range: PaintIndex::default()..PaintIndex::default(),
         });
@@ -7893,9 +8146,11 @@ impl Window {
         // Save main frame state that we'll temporarily override.
         let saved_mouse_position = self.mouse_position;
         let saved_hit_test = self.mouse_hit_test.clone();
+        let saved_event_native_view_ptr = self.current_event_native_view_ptr;
 
         // Set the mouse position to the surface-local coordinates.
         self.mouse_position = event_position;
+        self.current_event_native_view_ptr = Some(native_view_ptr);
 
         // Compute hit test against the surface's hitboxes.
         let surface = self.surfaces.get(&surface_id).unwrap();
@@ -7967,6 +8222,7 @@ impl Window {
         // Restore main frame state.
         self.mouse_position = saved_mouse_position;
         self.mouse_hit_test = saved_hit_test;
+        self.current_event_native_view_ptr = saved_event_native_view_ptr;
 
         // If the surface's hover state changed, force a redraw so hover styles update.
         if hit_test_changed || self.invalidator.is_dirty() {

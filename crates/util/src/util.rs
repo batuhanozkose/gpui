@@ -1067,7 +1067,8 @@ pub fn normalize_path(path: &Path) -> PathBuf {
     use std::path::Component;
 
     let mut components = path.components().peekable();
-    let mut normalized = if let Some(component @ Component::Prefix(..)) = components.peek().cloned() {
+    let mut normalized = if let Some(component @ Component::Prefix(..)) = components.peek().cloned()
+    {
         components.next();
         PathBuf::from(component.as_os_str())
     } else {

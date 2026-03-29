@@ -1,4 +1,4 @@
-use super::{id, nil, ns_string, CALLBACK_IVAR};
+use super::{CALLBACK_IVAR, id, nil, ns_string};
 use ctor::ctor;
 use objc::{
     class,

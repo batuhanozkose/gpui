@@ -1,6 +1,6 @@
 #![allow(unused, non_upper_case_globals)]
 
-use gpui::{FontFallbacks, FontFeatures};
+use core_foundation::dictionary::CFDictionary;
 use core_foundation::{
     array::{
         CFArray, CFArrayAppendArray, CFArrayAppendValue, CFArrayCreateMutable, CFArrayGetCount,
@@ -14,7 +14,6 @@ use core_foundation::{
     string::{CFString, CFStringRef},
 };
 use core_foundation_sys::locale::CFLocaleCopyPreferredLanguages;
-use core_foundation::dictionary::CFDictionary;
 use core_graphics::geometry::CGAffineTransform;
 use core_text::{
     font::{CTFont, CTFontRef, cascade_list_for_languages},
@@ -25,6 +24,7 @@ use core_text::{
     },
 };
 use font_kit::font::Font as FontKitFont;
+use gpui::{FontFallbacks, FontFeatures};
 use std::ptr;
 
 type CGFloat = f64;

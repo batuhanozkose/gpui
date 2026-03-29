@@ -1,16 +1,10 @@
 // iOS menu button implementation using UIButton + UIMenu (iOS 14+).
 // NSMenu doesn't exist on iOS. UIMenu is the equivalent.
 
-use super::{id, nil, ns_string, CALLBACK_IVAR};
+use super::{CALLBACK_IVAR, id, nil, ns_string};
 use block::ConcreteBlock;
 use ctor::ctor;
-use objc::{
-    class,
-    declare::ClassDecl,
-    msg_send,
-    runtime::Class,
-    sel, sel_impl,
-};
+use objc::{class, declare::ClassDecl, msg_send, runtime::Class, sel, sel_impl};
 use std::{ffi::c_void, ptr};
 
 static mut MENU_TARGET_CLASS: *const Class = ptr::null();
@@ -37,9 +31,7 @@ pub(crate) unsafe fn create_native_menu_button(title: &str) -> id {
 
 /// Creates a UIButton with a context menu (same as menu button on iOS).
 pub(crate) unsafe fn create_native_context_menu_button(title: &str) -> id {
-    unsafe {
-        create_native_menu_button(title)
-    }
+    unsafe { create_native_menu_button(title) }
 }
 
 /// Sets the menu button title.
@@ -50,11 +42,7 @@ pub(crate) unsafe fn set_native_menu_button_title(button: id, title: &str) {
 }
 
 /// Sets the menu items using UIMenu + UIAction.
-pub(crate) unsafe fn set_native_menu_button_items(
-    button: id,
-    items: &[&str],
-    target: *mut c_void,
-) {
+pub(crate) unsafe fn set_native_menu_button_items(button: id, items: &[&str], target: *mut c_void) {
     unsafe {
         let mut actions: Vec<id> = Vec::with_capacity(items.len());
         for (index, item) in items.iter().enumerate() {
@@ -97,9 +85,7 @@ pub(crate) unsafe fn set_native_menu_button_items(
 }
 
 /// Creates a menu target for callbacks.
-pub(crate) unsafe fn create_native_menu_target(
-    callback: Box<dyn Fn(usize)>,
-) -> *mut c_void {
+pub(crate) unsafe fn create_native_menu_target(callback: Box<dyn Fn(usize)>) -> *mut c_void {
     unsafe {
         let target: id = msg_send![MENU_TARGET_CLASS, alloc];
         let target: id = msg_send![target, init];

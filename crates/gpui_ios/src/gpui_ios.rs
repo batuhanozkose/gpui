@@ -1,30 +1,13 @@
 #![cfg(target_os = "ios")]
 
-pub(crate) mod native_controls;
 mod ios_native_controls;
+pub(crate) mod native_controls;
 
 #[cfg(feature = "font-kit")]
 mod open_type;
 #[cfg(feature = "font-kit")]
 mod text_system;
 
-use gpui::hash;
-use gpui_metal::{InstanceBufferPool, MetalRenderer, SharedRenderResources};
-use ios_native_controls::IOS_NATIVE_CONTROLS;
-use gpui::{
-    Action, AnyWindowHandle, BackgroundExecutor, Bounds, ClipboardEntry, ClipboardItem,
-    Capslock, CursorStyle, DevicePixels, DispatchEventResult, DisplayId, Edges, ExternalPaths,
-    FileDropEvent, ForegroundExecutor, GLOBAL_THREAD_TIMINGS, GpuSpecs, HostedContentConfig,
-    Image, ImageFormat, KeyDownEvent, KeyUpEvent, KeybindingKeystroke, Keymap, Keystroke, Menu,
-    MenuItem, Modifiers, ModifiersChangedEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, OwnedMenu, PathPromptOptions, PinchEvent, Pixels, Platform, PlatformAtlas,
-    PlatformDispatcher, PlatformDisplay, PlatformInput, PlatformInputHandler,
-    PlatformKeyboardLayout, PlatformKeyboardMapper, PlatformTextSystem, PlatformWindow, Point,
-    Priority, PromptButton, PromptLevel, RequestFrameOptions, RotationEvent, RunnableVariant,
-    Scene, ScrollDelta, ScrollWheelEvent, Size, THREAD_TIMINGS, Task, TaskTiming, ThermalState,
-    ThreadTaskTimings, TouchPhase, WindowAppearance, WindowBackgroundAppearance, WindowBounds,
-    WindowControlArea, WindowParams, point, px, size,
-};
 use anyhow::{Result, anyhow};
 use block::ConcreteBlock;
 use collections::HashMap;
@@ -38,6 +21,25 @@ use core_foundation::{
 use ctor::ctor;
 use foreign_types::ForeignType as _;
 use futures::channel::oneshot;
+#[cfg(not(feature = "font-kit"))]
+use gpui::NoopTextSystem;
+use gpui::hash;
+use gpui::{
+    Action, AnyWindowHandle, BackgroundExecutor, Bounds, Capslock, ClipboardEntry, ClipboardItem,
+    CursorStyle, DevicePixels, DispatchEventResult, DisplayId, Edges, ExternalPaths, FileDropEvent,
+    ForegroundExecutor, GLOBAL_THREAD_TIMINGS, GpuSpecs, HostedContentConfig, Image, ImageFormat,
+    KeyDownEvent, KeyUpEvent, KeybindingKeystroke, Keymap, Keystroke, Menu, MenuItem, Modifiers,
+    ModifiersChangedEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, OwnedMenu,
+    PathPromptOptions, PinchEvent, Pixels, Platform, PlatformAtlas, PlatformDispatcher,
+    PlatformDisplay, PlatformInput, PlatformInputHandler, PlatformKeyboardLayout,
+    PlatformKeyboardMapper, PlatformTextSystem, PlatformWindow, Point, Priority, PromptButton,
+    PromptLevel, RequestFrameOptions, RotationEvent, RunnableVariant, Scene, ScrollDelta,
+    ScrollWheelEvent, Size, THREAD_TIMINGS, Task, TaskTiming, ThermalState, ThreadTaskTimings,
+    TouchPhase, WindowAppearance, WindowBackgroundAppearance, WindowBounds, WindowControlArea,
+    WindowParams, point, px, size,
+};
+use gpui_metal::{InstanceBufferPool, MetalRenderer, SharedRenderResources};
+use ios_native_controls::IOS_NATIVE_CONTROLS;
 use metal::{CAMetalLayer, MetalLayer};
 use objc::{
     class,
@@ -63,8 +65,6 @@ use std::{
 };
 #[cfg(feature = "font-kit")]
 use text_system::IosTextSystem;
-#[cfg(not(feature = "font-kit"))]
-use gpui::NoopTextSystem;
 
 type DispatchQueue = *mut c_void;
 type DispatchTime = u64;
@@ -170,12 +170,14 @@ unsafe fn make_text_position(index: usize) -> *mut Object {
     }
 }
 
-unsafe fn text_position_index(position: *mut Object) -> usize { unsafe {
-    if position.is_null() {
-        return 0;
+unsafe fn text_position_index(position: *mut Object) -> usize {
+    unsafe {
+        if position.is_null() {
+            return 0;
+        }
+        *(*position).get_ivar::<usize>(TEXT_POSITION_INDEX_IVAR)
     }
-    *(*position).get_ivar::<usize>(TEXT_POSITION_INDEX_IVAR)
-}}
+}
 
 // ---------------------------------------------------------------------------
 // GPUITextRange — UITextRange subclass storing start/end UTF-16 indices.
@@ -222,14 +224,16 @@ unsafe fn make_text_range(start: usize, end: usize) -> *mut Object {
     }
 }
 
-unsafe fn text_range_to_rust(range: *mut Object) -> Option<Range<usize>> { unsafe {
-    if range.is_null() {
-        return None;
+unsafe fn text_range_to_rust(range: *mut Object) -> Option<Range<usize>> {
+    unsafe {
+        if range.is_null() {
+            return None;
+        }
+        let start = *(*range).get_ivar::<usize>(TEXT_RANGE_START_IVAR);
+        let end = *(*range).get_ivar::<usize>(TEXT_RANGE_END_IVAR);
+        Some(start..end)
     }
-    let start = *(*range).get_ivar::<usize>(TEXT_RANGE_START_IVAR);
-    let end = *(*range).get_ivar::<usize>(TEXT_RANGE_END_IVAR);
-    Some(start..end)
-}}
+}
 
 extern "C" fn text_range_is_empty(this: &Object, _sel: Sel) -> BOOL {
     unsafe {
@@ -299,274 +303,272 @@ fn register_gpui_view_class() {
         let mut decl =
             ClassDecl::new("GPUIView", superclass).expect("failed to declare GPUIView class");
 
-    // Ivar to hold a raw pointer to Rc<Mutex<IosWindowState>>
-    decl.add_ivar::<*mut c_void>(WINDOW_STATE_IVAR);
+        // Ivar to hold a raw pointer to Rc<Mutex<IosWindowState>>
+        decl.add_ivar::<*mut c_void>(WINDOW_STATE_IVAR);
 
-    // Touch input
-    decl.add_method(
-        sel!(touchesBegan:withEvent:),
-        handle_touches_began as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
-    );
-    decl.add_method(
-        sel!(touchesMoved:withEvent:),
-        handle_touches_moved as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
-    );
-    decl.add_method(
-        sel!(touchesEnded:withEvent:),
-        handle_touches_ended as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
-    );
-    decl.add_method(
-        sel!(touchesCancelled:withEvent:),
-        handle_touches_cancelled as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
-    );
+        // Touch input
+        decl.add_method(
+            sel!(touchesBegan:withEvent:),
+            handle_touches_began as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
+        );
+        decl.add_method(
+            sel!(touchesMoved:withEvent:),
+            handle_touches_moved as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
+        );
+        decl.add_method(
+            sel!(touchesEnded:withEvent:),
+            handle_touches_ended as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
+        );
+        decl.add_method(
+            sel!(touchesCancelled:withEvent:),
+            handle_touches_cancelled as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
+        );
 
-    // Layout (resize, rotation, split view)
-    decl.add_method(
-        sel!(layoutSubviews),
-        handle_layout_subviews as extern "C" fn(&Object, Sel),
-    );
+        // Layout (resize, rotation, split view)
+        decl.add_method(
+            sel!(layoutSubviews),
+            handle_layout_subviews as extern "C" fn(&Object, Sel),
+        );
 
-    // Safe area insets change
-    decl.add_method(
-        sel!(safeAreaInsetsDidChange),
-        handle_safe_area_insets_change as extern "C" fn(&Object, Sel),
-    );
+        // Safe area insets change
+        decl.add_method(
+            sel!(safeAreaInsetsDidChange),
+            handle_safe_area_insets_change as extern "C" fn(&Object, Sel),
+        );
 
-    // Appearance (dark/light mode change)
-    decl.add_method(
-        sel!(traitCollectionDidChange:),
-        handle_trait_collection_change as extern "C" fn(&Object, Sel, *mut Object),
-    );
+        // Appearance (dark/light mode change)
+        decl.add_method(
+            sel!(traitCollectionDidChange:),
+            handle_trait_collection_change as extern "C" fn(&Object, Sel, *mut Object),
+        );
 
-    // Two-finger scroll pan gesture
-    decl.add_method(
-        sel!(handleScrollPan:),
-        handle_scroll_pan as extern "C" fn(&Object, Sel, *mut Object),
-    );
+        // Two-finger scroll pan gesture
+        decl.add_method(
+            sel!(handleScrollPan:),
+            handle_scroll_pan as extern "C" fn(&Object, Sel, *mut Object),
+        );
 
-    // Single-finger scroll pan gesture
-    decl.add_method(
-        sel!(handleSingleFingerPan:),
-        handle_single_finger_pan as extern "C" fn(&Object, Sel, *mut Object),
-    );
+        // Single-finger scroll pan gesture
+        decl.add_method(
+            sel!(handleSingleFingerPan:),
+            handle_single_finger_pan as extern "C" fn(&Object, Sel, *mut Object),
+        );
 
-    // Pinch gesture
-    decl.add_method(
-        sel!(handlePinch:),
-        handle_pinch as extern "C" fn(&Object, Sel, *mut Object),
-    );
+        // Pinch gesture
+        decl.add_method(
+            sel!(handlePinch:),
+            handle_pinch as extern "C" fn(&Object, Sel, *mut Object),
+        );
 
-    // Rotation gesture
-    decl.add_method(
-        sel!(handleRotation:),
-        handle_rotation as extern "C" fn(&Object, Sel, *mut Object),
-    );
+        // Rotation gesture
+        decl.add_method(
+            sel!(handleRotation:),
+            handle_rotation as extern "C" fn(&Object, Sel, *mut Object),
+        );
 
-    // UIKeyInput (base of UITextInput) — first responder + basic text ops
-    decl.add_method(
-        sel!(canBecomeFirstResponder),
-        can_become_first_responder as extern "C" fn(&Object, Sel) -> BOOL,
-    );
-    decl.add_method(
-        sel!(hasText),
-        has_text as extern "C" fn(&Object, Sel) -> BOOL,
-    );
-    decl.add_method(
-        sel!(insertText:),
-        insert_text as extern "C" fn(&Object, Sel, *mut Object),
-    );
-    decl.add_method(
-        sel!(deleteBackward),
-        delete_backward as extern "C" fn(&Object, Sel),
-    );
+        // UIKeyInput (base of UITextInput) — first responder + basic text ops
+        decl.add_method(
+            sel!(canBecomeFirstResponder),
+            can_become_first_responder as extern "C" fn(&Object, Sel) -> BOOL,
+        );
+        decl.add_method(
+            sel!(hasText),
+            has_text as extern "C" fn(&Object, Sel) -> BOOL,
+        );
+        decl.add_method(
+            sel!(insertText:),
+            insert_text as extern "C" fn(&Object, Sel, *mut Object),
+        );
+        decl.add_method(
+            sel!(deleteBackward),
+            delete_backward as extern "C" fn(&Object, Sel),
+        );
 
-    // UITextInputTraits
-    decl.add_method(
-        sel!(keyboardType),
-        keyboard_type as extern "C" fn(&Object, Sel) -> isize,
-    );
-    decl.add_method(
-        sel!(autocorrectionType),
-        autocorrection_type as extern "C" fn(&Object, Sel) -> isize,
-    );
-    decl.add_method(
-        sel!(autocapitalizationType),
-        autocapitalization_type as extern "C" fn(&Object, Sel) -> isize,
-    );
-    decl.add_method(
-        sel!(spellCheckingType),
-        spell_checking_type as extern "C" fn(&Object, Sel) -> isize,
-    );
+        // UITextInputTraits
+        decl.add_method(
+            sel!(keyboardType),
+            keyboard_type as extern "C" fn(&Object, Sel) -> isize,
+        );
+        decl.add_method(
+            sel!(autocorrectionType),
+            autocorrection_type as extern "C" fn(&Object, Sel) -> isize,
+        );
+        decl.add_method(
+            sel!(autocapitalizationType),
+            autocapitalization_type as extern "C" fn(&Object, Sel) -> isize,
+        );
+        decl.add_method(
+            sel!(spellCheckingType),
+            spell_checking_type as extern "C" fn(&Object, Sel) -> isize,
+        );
 
-    // UITextInput — full text input protocol for IME composition, marked
-    // text, cursor positioning, and text selection.
-    decl.add_ivar::<*mut c_void>("gpui_input_delegate");
-    decl.add_ivar::<*mut c_void>("gpui_tokenizer");
+        // UITextInput — full text input protocol for IME composition, marked
+        // text, cursor positioning, and text selection.
+        decl.add_ivar::<*mut c_void>("gpui_input_delegate");
+        decl.add_ivar::<*mut c_void>("gpui_tokenizer");
 
-    decl.add_method(
-        sel!(textInRange:),
-        uitextinput_text_in_range as extern "C" fn(&Object, Sel, *mut Object) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(replaceRange:withText:),
-        uitextinput_replace_range as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
-    );
-    decl.add_method(
-        sel!(selectedTextRange),
-        uitextinput_selected_text_range as extern "C" fn(&Object, Sel) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(setSelectedTextRange:),
-        uitextinput_set_selected_text_range as extern "C" fn(&Object, Sel, *mut Object),
-    );
-    decl.add_method(
-        sel!(markedTextRange),
-        uitextinput_marked_text_range as extern "C" fn(&Object, Sel) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(markedTextStyle),
-        uitextinput_marked_text_style as extern "C" fn(&Object, Sel) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(setMarkedTextStyle:),
-        uitextinput_set_marked_text_style as extern "C" fn(&Object, Sel, *mut Object),
-    );
-    decl.add_method(
-        sel!(setMarkedText:selectedRange:),
-        uitextinput_set_marked_text
-            as extern "C" fn(&Object, Sel, *mut Object, NSRange),
-    );
-    decl.add_method(
-        sel!(unmarkText),
-        uitextinput_unmark_text as extern "C" fn(&Object, Sel),
-    );
-    decl.add_method(
-        sel!(beginningOfDocument),
-        uitextinput_beginning_of_document as extern "C" fn(&Object, Sel) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(endOfDocument),
-        uitextinput_end_of_document as extern "C" fn(&Object, Sel) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(textRangeFromPosition:toPosition:),
-        uitextinput_text_range_from_position
-            as extern "C" fn(&Object, Sel, *mut Object, *mut Object) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(positionFromPosition:offset:),
-        uitextinput_position_from_position_offset
-            as extern "C" fn(&Object, Sel, *mut Object, isize) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(positionFromPosition:inDirection:offset:),
-        uitextinput_position_from_position_direction
-            as extern "C" fn(&Object, Sel, *mut Object, isize, isize) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(comparePosition:toPosition:),
-        uitextinput_compare_position
-            as extern "C" fn(&Object, Sel, *mut Object, *mut Object) -> isize,
-    );
-    decl.add_method(
-        sel!(offsetFromPosition:toPosition:),
-        uitextinput_offset_from_position
-            as extern "C" fn(&Object, Sel, *mut Object, *mut Object) -> isize,
-    );
-    decl.add_method(
-        sel!(inputDelegate),
-        uitextinput_input_delegate as extern "C" fn(&Object, Sel) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(setInputDelegate:),
-        uitextinput_set_input_delegate as extern "C" fn(&Object, Sel, *mut Object),
-    );
-    decl.add_method(
-        sel!(tokenizer),
-        uitextinput_tokenizer as extern "C" fn(&Object, Sel) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(positionWithinRange:farthestInDirection:),
-        uitextinput_position_within_range
-            as extern "C" fn(&Object, Sel, *mut Object, isize) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(characterRangeByExtendingPosition:inDirection:),
-        uitextinput_character_range_by_extending
-            as extern "C" fn(&Object, Sel, *mut Object, isize) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(baseWritingDirectionForPosition:inDirection:),
-        uitextinput_base_writing_direction
-            as extern "C" fn(&Object, Sel, *mut Object, isize) -> isize,
-    );
-    decl.add_method(
-        sel!(setBaseWritingDirection:forRange:),
-        uitextinput_set_base_writing_direction
-            as extern "C" fn(&Object, Sel, isize, *mut Object),
-    );
-    decl.add_method(
-        sel!(firstRectForRange:),
-        uitextinput_first_rect_for_range
-            as extern "C" fn(&Object, Sel, *mut Object) -> CGRect,
-    );
-    decl.add_method(
-        sel!(caretRectForPosition:),
-        uitextinput_caret_rect_for_position
-            as extern "C" fn(&Object, Sel, *mut Object) -> CGRect,
-    );
-    decl.add_method(
-        sel!(selectionRectsForRange:),
-        uitextinput_selection_rects_for_range
-            as extern "C" fn(&Object, Sel, *mut Object) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(closestPositionToPoint:),
-        uitextinput_closest_position_to_point
-            as extern "C" fn(&Object, Sel, CGPoint) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(closestPositionToPoint:withinRange:),
-        uitextinput_closest_position_to_point_within_range
-            as extern "C" fn(&Object, Sel, CGPoint, *mut Object) -> *mut Object,
-    );
-    decl.add_method(
-        sel!(characterRangeAtPoint:),
-        uitextinput_character_range_at_point
-            as extern "C" fn(&Object, Sel, CGPoint) -> *mut Object,
-    );
+        decl.add_method(
+            sel!(textInRange:),
+            uitextinput_text_in_range as extern "C" fn(&Object, Sel, *mut Object) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(replaceRange:withText:),
+            uitextinput_replace_range as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
+        );
+        decl.add_method(
+            sel!(selectedTextRange),
+            uitextinput_selected_text_range as extern "C" fn(&Object, Sel) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(setSelectedTextRange:),
+            uitextinput_set_selected_text_range as extern "C" fn(&Object, Sel, *mut Object),
+        );
+        decl.add_method(
+            sel!(markedTextRange),
+            uitextinput_marked_text_range as extern "C" fn(&Object, Sel) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(markedTextStyle),
+            uitextinput_marked_text_style as extern "C" fn(&Object, Sel) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(setMarkedTextStyle:),
+            uitextinput_set_marked_text_style as extern "C" fn(&Object, Sel, *mut Object),
+        );
+        decl.add_method(
+            sel!(setMarkedText:selectedRange:),
+            uitextinput_set_marked_text as extern "C" fn(&Object, Sel, *mut Object, NSRange),
+        );
+        decl.add_method(
+            sel!(unmarkText),
+            uitextinput_unmark_text as extern "C" fn(&Object, Sel),
+        );
+        decl.add_method(
+            sel!(beginningOfDocument),
+            uitextinput_beginning_of_document as extern "C" fn(&Object, Sel) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(endOfDocument),
+            uitextinput_end_of_document as extern "C" fn(&Object, Sel) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(textRangeFromPosition:toPosition:),
+            uitextinput_text_range_from_position
+                as extern "C" fn(&Object, Sel, *mut Object, *mut Object) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(positionFromPosition:offset:),
+            uitextinput_position_from_position_offset
+                as extern "C" fn(&Object, Sel, *mut Object, isize) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(positionFromPosition:inDirection:offset:),
+            uitextinput_position_from_position_direction
+                as extern "C" fn(&Object, Sel, *mut Object, isize, isize) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(comparePosition:toPosition:),
+            uitextinput_compare_position
+                as extern "C" fn(&Object, Sel, *mut Object, *mut Object) -> isize,
+        );
+        decl.add_method(
+            sel!(offsetFromPosition:toPosition:),
+            uitextinput_offset_from_position
+                as extern "C" fn(&Object, Sel, *mut Object, *mut Object) -> isize,
+        );
+        decl.add_method(
+            sel!(inputDelegate),
+            uitextinput_input_delegate as extern "C" fn(&Object, Sel) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(setInputDelegate:),
+            uitextinput_set_input_delegate as extern "C" fn(&Object, Sel, *mut Object),
+        );
+        decl.add_method(
+            sel!(tokenizer),
+            uitextinput_tokenizer as extern "C" fn(&Object, Sel) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(positionWithinRange:farthestInDirection:),
+            uitextinput_position_within_range
+                as extern "C" fn(&Object, Sel, *mut Object, isize) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(characterRangeByExtendingPosition:inDirection:),
+            uitextinput_character_range_by_extending
+                as extern "C" fn(&Object, Sel, *mut Object, isize) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(baseWritingDirectionForPosition:inDirection:),
+            uitextinput_base_writing_direction
+                as extern "C" fn(&Object, Sel, *mut Object, isize) -> isize,
+        );
+        decl.add_method(
+            sel!(setBaseWritingDirection:forRange:),
+            uitextinput_set_base_writing_direction
+                as extern "C" fn(&Object, Sel, isize, *mut Object),
+        );
+        decl.add_method(
+            sel!(firstRectForRange:),
+            uitextinput_first_rect_for_range as extern "C" fn(&Object, Sel, *mut Object) -> CGRect,
+        );
+        decl.add_method(
+            sel!(caretRectForPosition:),
+            uitextinput_caret_rect_for_position
+                as extern "C" fn(&Object, Sel, *mut Object) -> CGRect,
+        );
+        decl.add_method(
+            sel!(selectionRectsForRange:),
+            uitextinput_selection_rects_for_range
+                as extern "C" fn(&Object, Sel, *mut Object) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(closestPositionToPoint:),
+            uitextinput_closest_position_to_point
+                as extern "C" fn(&Object, Sel, CGPoint) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(closestPositionToPoint:withinRange:),
+            uitextinput_closest_position_to_point_within_range
+                as extern "C" fn(&Object, Sel, CGPoint, *mut Object) -> *mut Object,
+        );
+        decl.add_method(
+            sel!(characterRangeAtPoint:),
+            uitextinput_character_range_at_point
+                as extern "C" fn(&Object, Sel, CGPoint) -> *mut Object,
+        );
 
-    // iPadOS hover gesture (pointer support)
-    decl.add_method(
-        sel!(handleHover:),
-        handle_hover as extern "C" fn(&Object, Sel, *mut Object),
-    );
+        // iPadOS hover gesture (pointer support)
+        decl.add_method(
+            sel!(handleHover:),
+            handle_hover as extern "C" fn(&Object, Sel, *mut Object),
+        );
 
-    // Long-press gesture (simulates right-click for context menus)
-    decl.add_method(
-        sel!(handleLongPress:),
-        handle_long_press as extern "C" fn(&Object, Sel, *mut Object),
-    );
+        // Long-press gesture (simulates right-click for context menus)
+        decl.add_method(
+            sel!(handleLongPress:),
+            handle_long_press as extern "C" fn(&Object, Sel, *mut Object),
+        );
 
-    // Hardware keyboard via UIPresses
-    decl.add_method(
-        sel!(pressesBegan:withEvent:),
-        handle_presses_began as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
-    );
-    decl.add_method(
-        sel!(pressesEnded:withEvent:),
-        handle_presses_ended as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
-    );
-    decl.add_method(
-        sel!(pressesCancelled:withEvent:),
-        handle_presses_cancelled as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
-    );
+        // Hardware keyboard via UIPresses
+        decl.add_method(
+            sel!(pressesBegan:withEvent:),
+            handle_presses_began as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
+        );
+        decl.add_method(
+            sel!(pressesEnded:withEvent:),
+            handle_presses_ended as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
+        );
+        decl.add_method(
+            sel!(pressesCancelled:withEvent:),
+            handle_presses_cancelled as extern "C" fn(&Object, Sel, *mut Object, *mut Object),
+        );
 
-    // Make CAMetalLayer the view's own backing layer
-    decl.add_class_method(
-        sel!(layerClass),
-        gpui_view_layer_class as extern "C" fn(&Class, Sel) -> *const Class,
-    );
+        // Make CAMetalLayer the view's own backing layer
+        decl.add_class_method(
+            sel!(layerClass),
+            gpui_view_layer_class as extern "C" fn(&Class, Sel) -> *const Class,
+        );
 
         GPUI_VIEW_CLASS = decl.register();
     }
@@ -578,16 +580,18 @@ extern "C" fn gpui_view_layer_class(_self: &Class, _sel: Sel) -> *const Class {
 
 /// Recover the `Rc<Mutex<IosWindowState>>` from the view's ivar without
 /// consuming the Rc (the ivar still holds its reference).
-unsafe fn get_window_state(view: &Object) -> Option<Rc<Mutex<IosWindowState>>> { unsafe {
-    let ptr: *mut c_void = *view.get_ivar(WINDOW_STATE_IVAR);
-    if ptr.is_null() {
-        return None;
+unsafe fn get_window_state(view: &Object) -> Option<Rc<Mutex<IosWindowState>>> {
+    unsafe {
+        let ptr: *mut c_void = *view.get_ivar(WINDOW_STATE_IVAR);
+        if ptr.is_null() {
+            return None;
+        }
+        let rc = Rc::from_raw(ptr as *const Mutex<IosWindowState>);
+        let clone = rc.clone();
+        std::mem::forget(rc); // Don't drop — ivar still holds it
+        Some(clone)
     }
-    let rc = Rc::from_raw(ptr as *const Mutex<IosWindowState>);
-    let clone = rc.clone();
-    std::mem::forget(rc); // Don't drop — ivar still holds it
-    Some(clone)
-}}
+}
 
 /// Extract the primary touch position from a UITouch set relative to the view.
 /// Returns `(position, tap_count)`.
@@ -1109,19 +1113,15 @@ extern "C" fn uitextinput_replace_range(
 
 extern "C" fn uitextinput_selected_text_range(this: &Object, _sel: Sel) -> *mut Object {
     with_input_handler(this, |handler| {
-        handler.selected_text_range(false).map(|sel| unsafe {
-            make_text_range(sel.range.start, sel.range.end)
-        })
+        handler
+            .selected_text_range(false)
+            .map(|sel| unsafe { make_text_range(sel.range.start, sel.range.end) })
     })
     .flatten()
     .unwrap_or(std::ptr::null_mut())
 }
 
-extern "C" fn uitextinput_set_selected_text_range(
-    this: &Object,
-    _sel: Sel,
-    range: *mut Object,
-) {
+extern "C" fn uitextinput_set_selected_text_range(this: &Object, _sel: Sel, range: *mut Object) {
     let Some(rust_range) = (unsafe { text_range_to_rust(range) }) else {
         return;
     };
@@ -1138,9 +1138,9 @@ extern "C" fn uitextinput_set_selected_text_range(
 
 extern "C" fn uitextinput_marked_text_range(this: &Object, _sel: Sel) -> *mut Object {
     with_input_handler(this, |handler| {
-        handler.marked_text_range().map(|range| unsafe {
-            make_text_range(range.start, range.end)
-        })
+        handler
+            .marked_text_range()
+            .map(|range| unsafe { make_text_range(range.start, range.end) })
     })
     .flatten()
     .unwrap_or(std::ptr::null_mut())
@@ -1258,8 +1258,8 @@ extern "C" fn uitextinput_position_from_position_direction(
     // UITextLayoutDirection: 1=right, 2=left, 3=up, 4=down
     // For a simple text model, right/down = forward, left/up = backward
     let effective_offset = match direction {
-        1 | 4 => offset,       // right/down = forward
-        2 | 3 => -offset,      // left/up = backward
+        1 | 4 => offset,  // right/down = forward
+        2 | 3 => -offset, // left/up = backward
         _ => offset,
     };
     uitextinput_position_from_position_offset(this, _sel, position, effective_offset)
@@ -1274,9 +1274,9 @@ extern "C" fn uitextinput_compare_position(
     let idx_a = unsafe { text_position_index(a) };
     let idx_b = unsafe { text_position_index(b) };
     match idx_a.cmp(&idx_b) {
-        std::cmp::Ordering::Less => -1,    // NSOrderedAscending
-        std::cmp::Ordering::Equal => 0,     // NSOrderedSame
-        std::cmp::Ordering::Greater => 1,   // NSOrderedDescending
+        std::cmp::Ordering::Less => -1,   // NSOrderedAscending
+        std::cmp::Ordering::Equal => 0,   // NSOrderedSame
+        std::cmp::Ordering::Greater => 1, // NSOrderedDescending
     }
 }
 
@@ -1354,8 +1354,8 @@ extern "C" fn uitextinput_character_range_by_extending(
     let doc_len = document_length_utf16(this);
     // Extend one character in the given direction
     let (start, end) = match direction {
-        1 | 4 => (index, (index + 1).min(doc_len)),  // right/down
-        2 | 3 => (index.saturating_sub(1), index),     // left/up
+        1 | 4 => (index, (index + 1).min(doc_len)), // right/down
+        2 | 3 => (index.saturating_sub(1), index),  // left/up
         _ => (index, (index + 1).min(doc_len)),
     };
     unsafe { make_text_range(start, end) }
@@ -1386,7 +1386,10 @@ extern "C" fn uitextinput_first_rect_for_range(
 ) -> CGRect {
     let zero_rect = CGRect {
         origin: CGPoint { x: 0.0, y: 0.0 },
-        size: CGSize { width: 0.0, height: 0.0 },
+        size: CGSize {
+            width: 0.0,
+            height: 0.0,
+        },
     };
 
     let Some(rust_range) = (unsafe { text_range_to_rust(range) }) else {
@@ -1421,7 +1424,10 @@ extern "C" fn uitextinput_caret_rect_for_position(
     if position.is_null() {
         return CGRect {
             origin: CGPoint { x: 0.0, y: 0.0 },
-            size: CGSize { width: 0.0, height: 0.0 },
+            size: CGSize {
+                width: 0.0,
+                height: 0.0,
+            },
         };
     }
     let index = unsafe { text_position_index(position) };
@@ -1443,7 +1449,10 @@ extern "C" fn uitextinput_caret_rect_for_position(
     .flatten()
     .unwrap_or(CGRect {
         origin: CGPoint { x: 0.0, y: 0.0 },
-        size: CGSize { width: 2.0, height: 20.0 },
+        size: CGSize {
+            width: 2.0,
+            height: 20.0,
+        },
     })
 }
 
@@ -1463,9 +1472,9 @@ extern "C" fn uitextinput_closest_position_to_point(
 ) -> *mut Object {
     let gpui_point = gpui::point(px(point.x as f32), px(point.y as f32));
     with_input_handler(this, |handler| {
-        handler.character_index_for_point(gpui_point).map(|index| unsafe {
-            make_text_position(index)
-        })
+        handler
+            .character_index_for_point(gpui_point)
+            .map(|index| unsafe { make_text_position(index) })
     })
     .flatten()
     .unwrap_or_else(|| unsafe { make_text_position(0) })
@@ -1498,9 +1507,9 @@ extern "C" fn uitextinput_character_range_at_point(
 ) -> *mut Object {
     let gpui_point = gpui::point(px(point.x as f32), px(point.y as f32));
     with_input_handler(this, |handler| {
-        handler.character_index_for_point(gpui_point).map(|index| unsafe {
-            make_text_range(index, index + 1)
-        })
+        handler
+            .character_index_for_point(gpui_point)
+            .map(|index| unsafe { make_text_range(index, index + 1) })
     })
     .flatten()
     .unwrap_or(std::ptr::null_mut())
@@ -2172,10 +2181,12 @@ extern "C" fn handle_input_mode_changed(this: &Object, _sel: Sel, _notification:
     }
 }
 
-unsafe extern "C" fn input_mode_changed_trampoline(context: *mut c_void) { unsafe {
-    let callback = &mut *(context as *mut Box<dyn FnMut()>);
-    callback();
-}}
+unsafe extern "C" fn input_mode_changed_trampoline(context: *mut c_void) {
+    unsafe {
+        let callback = &mut *(context as *mut Box<dyn FnMut()>);
+        callback();
+    }
+}
 
 // ---------------------------------------------------------------------------
 // GPUISceneObserver — receives UIScene lifecycle notifications and forwards
@@ -2276,16 +2287,18 @@ extern "C" fn handle_scene_will_enter_foreground(
     }
 }
 
-unsafe fn get_scene_observer_state(observer: &Object) -> Option<Rc<Mutex<IosWindowState>>> { unsafe {
-    let ptr: *mut c_void = *observer.get_ivar(WINDOW_STATE_IVAR);
-    if ptr.is_null() {
-        return None;
+unsafe fn get_scene_observer_state(observer: &Object) -> Option<Rc<Mutex<IosWindowState>>> {
+    unsafe {
+        let ptr: *mut c_void = *observer.get_ivar(WINDOW_STATE_IVAR);
+        if ptr.is_null() {
+            return None;
+        }
+        let rc = Rc::from_raw(ptr as *const Mutex<IosWindowState>);
+        let clone = rc.clone();
+        std::mem::forget(rc);
+        Some(clone)
     }
-    let rc = Rc::from_raw(ptr as *const Mutex<IosWindowState>);
-    let clone = rc.clone();
-    std::mem::forget(rc);
-    Some(clone)
-}}
+}
 
 // ---------------------------------------------------------------------------
 // GPUIDropDelegate — handles external file drag/drop with UIDropInteraction.
@@ -2329,16 +2342,18 @@ fn register_drop_delegate_class() {
     }
 }
 
-unsafe fn drop_delegate_state(delegate: &Object) -> Option<Rc<Mutex<IosWindowState>>> { unsafe {
-    let ptr: *mut c_void = *delegate.get_ivar(WINDOW_STATE_IVAR);
-    if ptr.is_null() {
-        return None;
+unsafe fn drop_delegate_state(delegate: &Object) -> Option<Rc<Mutex<IosWindowState>>> {
+    unsafe {
+        let ptr: *mut c_void = *delegate.get_ivar(WINDOW_STATE_IVAR);
+        if ptr.is_null() {
+            return None;
+        }
+        let rc = Rc::from_raw(ptr as *const Mutex<IosWindowState>);
+        let clone = rc.clone();
+        std::mem::forget(rc);
+        Some(clone)
     }
-    let rc = Rc::from_raw(ptr as *const Mutex<IosWindowState>);
-    let clone = rc.clone();
-    std::mem::forget(rc);
-    Some(clone)
-}}
+}
 
 fn drop_location(state: &Mutex<IosWindowState>, session: *mut Object) -> Point<Pixels> {
     unsafe {
@@ -2537,30 +2552,34 @@ fn register_document_picker_delegate_class() {
 
 unsafe fn take_document_picker_context(
     delegate: *mut Object,
-) -> Option<Box<DocumentPickerCallbackContext>> { unsafe {
-    let ptr: *mut c_void = *(*delegate).get_ivar(CALLBACK_IVAR);
-    if ptr.is_null() {
-        return None;
-    }
-    (*delegate).set_ivar::<*mut c_void>(CALLBACK_IVAR, std::ptr::null_mut());
-    Some(Box::from_raw(ptr as *mut DocumentPickerCallbackContext))
-}}
-
-unsafe fn release_document_picker_delegate(delegate: *mut Object) { unsafe {
-    let platform_ptr = IOS_PLATFORM_STATE_PTR.load(Ordering::Acquire);
-    if !platform_ptr.is_null() {
-        let platform_state = &*(platform_ptr as *const Mutex<IosPlatformState>);
-        let mut lock = platform_state.lock();
-        if let Some(index) = lock
-            .document_picker_delegates
-            .iter()
-            .position(|candidate| *candidate == delegate)
-        {
-            lock.document_picker_delegates.swap_remove(index);
+) -> Option<Box<DocumentPickerCallbackContext>> {
+    unsafe {
+        let ptr: *mut c_void = *(*delegate).get_ivar(CALLBACK_IVAR);
+        if ptr.is_null() {
+            return None;
         }
+        (*delegate).set_ivar::<*mut c_void>(CALLBACK_IVAR, std::ptr::null_mut());
+        Some(Box::from_raw(ptr as *mut DocumentPickerCallbackContext))
     }
-    let _: () = msg_send![delegate, release];
-}}
+}
+
+unsafe fn release_document_picker_delegate(delegate: *mut Object) {
+    unsafe {
+        let platform_ptr = IOS_PLATFORM_STATE_PTR.load(Ordering::Acquire);
+        if !platform_ptr.is_null() {
+            let platform_state = &*(platform_ptr as *const Mutex<IosPlatformState>);
+            let mut lock = platform_state.lock();
+            if let Some(index) = lock
+                .document_picker_delegates
+                .iter()
+                .position(|candidate| *candidate == delegate)
+            {
+                lock.document_picker_delegates.swap_remove(index);
+            }
+        }
+        let _: () = msg_send![delegate, release];
+    }
+}
 
 fn urls_to_paths(urls: *mut Object) -> Vec<PathBuf> {
     let mut result = Vec::new();
@@ -2710,29 +2729,22 @@ impl IosKeyboardMapper {
         // hardware keyboard layouts attached to iPad/iPhone.
         let mappings: Option<&[(char, char)]> = if layout_id.starts_with("fr") {
             // AZERTY (France)
-            Some(&[
-                ('a', 'q'), ('q', 'a'), ('z', 'w'), ('w', 'z'),
-                ('m', ';'),
-            ])
+            Some(&[('a', 'q'), ('q', 'a'), ('z', 'w'), ('w', 'z'), ('m', ';')])
         } else if layout_id.starts_with("de") || layout_id.starts_with("at") {
             // QWERTZ (German/Austrian)
             Some(&[('y', 'z'), ('z', 'y')])
-        } else if layout_id.starts_with("cs") || layout_id.starts_with("sk")
+        } else if layout_id.starts_with("cs")
+            || layout_id.starts_with("sk")
             || layout_id.starts_with("hu")
         {
             // QWERTZ (Czech/Slovak/Hungarian)
             Some(&[('y', 'z'), ('z', 'y')])
         } else if layout_id.starts_with("be") {
             // AZERTY (Belgium)
-            Some(&[
-                ('a', 'q'), ('q', 'a'), ('z', 'w'), ('w', 'z'),
-                ('m', ';'),
-            ])
+            Some(&[('a', 'q'), ('q', 'a'), ('z', 'w'), ('w', 'z'), ('m', ';')])
         } else if layout_id.starts_with("tr") {
             // Turkish F-layout
-            Some(&[
-                ('f', 'a'), ('g', 's'), ('j', 'h'), ('k', 'j'),
-            ])
+            Some(&[('f', 'a'), ('g', 's'), ('j', 'h'), ('k', 'j')])
         } else {
             // QWERTY (English, Spanish, Portuguese, Italian, etc.)
             None
@@ -2989,7 +3001,8 @@ fn detect_system_appearance() -> WindowAppearance {
 }
 
 extern "C" fn dispatch_trampoline(context: *mut c_void) {
-    let runnable = unsafe { RunnableVariant::from_raw(NonNull::new_unchecked(context.cast::<()>())) };
+    let runnable =
+        unsafe { RunnableVariant::from_raw(NonNull::new_unchecked(context.cast::<()>())) };
     IosDispatcher::run_runnable(runnable);
 }
 
@@ -3389,21 +3402,22 @@ impl Platform for IosPlatform {
         unsafe {
             let content_types: *mut Object = msg_send![class!(NSMutableArray), array];
             if options.files {
-                let data_type: *mut Object = msg_send![class!(UTType), typeWithIdentifier: ns_string("public.data")];
+                let data_type: *mut Object =
+                    msg_send![class!(UTType), typeWithIdentifier: ns_string("public.data")];
                 if !data_type.is_null() {
                     let _: () = msg_send![content_types, addObject: data_type];
                 }
             }
             if options.directories {
-                let folder_type: *mut Object = msg_send![class!(UTType), typeWithIdentifier: ns_string("public.folder")];
+                let folder_type: *mut Object =
+                    msg_send![class!(UTType), typeWithIdentifier: ns_string("public.folder")];
                 if !folder_type.is_null() {
                     let _: () = msg_send![content_types, addObject: folder_type];
                 }
             }
 
             let picker: *mut Object = msg_send![class!(UIDocumentPickerViewController), alloc];
-            let picker: *mut Object =
-                msg_send![picker, initForOpeningContentTypes: content_types];
+            let picker: *mut Object = msg_send![picker, initForOpeningContentTypes: content_types];
             if picker.is_null() {
                 let _ = tx.send(Err(anyhow!(
                     "failed to create UIDocumentPickerViewController"
@@ -3830,8 +3844,7 @@ impl Platform for IosPlatform {
         unsafe {
             if !platform_state.input_mode_observer.is_null() {
                 let center: *mut Object = msg_send![class!(NSNotificationCenter), defaultCenter];
-                let _: () =
-                    msg_send![center, removeObserver: platform_state.input_mode_observer];
+                let _: () = msg_send![center, removeObserver: platform_state.input_mode_observer];
                 let old_ptr: *mut c_void =
                     *(*platform_state.input_mode_observer).get_ivar(CALLBACK_IVAR);
                 if !old_ptr.is_null() {
@@ -4247,8 +4260,7 @@ impl Drop for IosWindow {
 
             // Release the lazily-created UITextInputStringTokenizer
             if !state.ui_view.is_null() {
-                let tokenizer_ptr: *mut c_void =
-                    *(*state.ui_view).get_ivar("gpui_tokenizer");
+                let tokenizer_ptr: *mut c_void = *(*state.ui_view).get_ivar("gpui_tokenizer");
                 if !tokenizer_ptr.is_null() {
                     let _: () = msg_send![tokenizer_ptr as *mut Object, release];
                     (*state.ui_view)
@@ -4650,11 +4662,7 @@ impl PlatformWindow for IosWindow {
         }
     }
 
-    fn attach_hosted_surface(
-        &self,
-        host_view: *mut c_void,
-        surface_view: *mut c_void,
-    ) {
+    fn attach_hosted_surface(&self, host_view: *mut c_void, surface_view: *mut c_void) {
         unsafe {
             crate::native_controls::embed_surface_view_in_sidebar(
                 host_view as crate::native_controls::id,

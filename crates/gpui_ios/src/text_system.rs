@@ -1,9 +1,3 @@
-use gpui::{
-    Bounds, DevicePixels, Font, FontFallbacks, FontFeatures, FontId, FontMetrics, FontRun,
-    FontStyle, FontWeight, GlyphId, LineLayout, Pixels, PlatformTextSystem,
-    RenderGlyphParams, Result, SUBPIXEL_VARIANTS_X, ShapedGlyph, ShapedRun, SharedString, Size,
-    TextRenderingMode, font_name_with_fallbacks, point, px, size, swap_rgba_pa_to_bgra,
-};
 use anyhow::anyhow;
 use collections::HashMap;
 use core_foundation::{
@@ -37,6 +31,12 @@ use font_kit::{
     properties::{Style as FontkitStyle, Weight as FontkitWeight},
     source::SystemSource,
     sources::mem::MemSource,
+};
+use gpui::{
+    Bounds, DevicePixels, Font, FontFallbacks, FontFeatures, FontId, FontMetrics, FontRun,
+    FontStyle, FontWeight, GlyphId, LineLayout, Pixels, PlatformTextSystem, RenderGlyphParams,
+    Result, SUBPIXEL_VARIANTS_X, ShapedGlyph, ShapedRun, SharedString, Size, TextRenderingMode,
+    font_name_with_fallbacks, point, px, size, swap_rgba_pa_to_bgra,
 };
 use parking_lot::{RwLock, RwLockUpgradableReadGuard};
 use pathfinder_geometry::{
@@ -305,7 +305,9 @@ impl IosTextSystemState {
     }
 
     fn advance(&self, font_id: FontId, glyph_id: GlyphId) -> Result<Size<f32>> {
-        Ok(size_from_vector2f(self.fonts[font_id.0].advance(glyph_id.0)?))
+        Ok(size_from_vector2f(
+            self.fonts[font_id.0].advance(glyph_id.0)?,
+        ))
     }
 
     fn glyph_for_char(&self, font_id: FontId, ch: char) -> Option<GlyphId> {

@@ -8,7 +8,17 @@ pub fn deferred(child: impl IntoElement) -> Deferred {
     Deferred {
         child: Some(child.into_any_element()),
         priority: 0,
+        target: DeferredTarget::Local,
     }
+}
+
+/// Where a deferred element should be rendered.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DeferredTarget {
+    /// Render the deferred element in the current scene.
+    Local,
+    /// Render the deferred element in the window overlay scene when available.
+    WindowOverlay,
 }
 
 /// An element which delays the painting of its child until after all of
@@ -16,6 +26,7 @@ pub fn deferred(child: impl IntoElement) -> Deferred {
 pub struct Deferred {
     child: Option<AnyElement>,
     priority: usize,
+    target: DeferredTarget,
 }
 
 impl Deferred {
@@ -24,6 +35,17 @@ impl Deferred {
     /// with higher values being drawn on top.
     pub fn with_priority(mut self, priority: usize) -> Self {
         self.priority = priority;
+        self
+    }
+
+    /// Paint this deferred element into the window overlay layer when possible.
+    ///
+    /// On macOS, hosted surfaces such as native sidebars can promote these
+    /// overlays out of the clipped surface into a full-window GPUI overlay
+    /// surface. On other platforms, or when not rendering inside a hosted
+    /// surface, this behaves like a normal deferred draw.
+    pub fn window_overlay(mut self) -> Self {
+        self.target = DeferredTarget::WindowOverlay;
         self
     }
 }
@@ -62,7 +84,7 @@ impl Element for Deferred {
     ) {
         let child = self.child.take().unwrap();
         let element_offset = window.element_offset();
-        window.defer_draw(child, element_offset, self.priority, None)
+        window.defer_draw_with_target(child, element_offset, self.priority, None, self.target)
     }
 
     fn paint(

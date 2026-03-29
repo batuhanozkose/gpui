@@ -138,9 +138,11 @@ fn remove_background_executor(parsed: &mut ParsedArgs, args: &mut Vec<FnArg>) {
         }
 
         parsed.inner_fn_decl_args.extend(quote!(#arg,));
-        parsed.inner_fn_args.extend(quote!(gpui::BackgroundExecutor::new(std::sync::Arc::new(
-            dispatcher.clone()
-        )),));
+        parsed
+            .inner_fn_args
+            .extend(quote!(gpui::BackgroundExecutor::new(std::sync::Arc::new(
+                dispatcher.clone()
+            )),));
         false
     });
 }

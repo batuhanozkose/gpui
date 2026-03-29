@@ -1713,6 +1713,13 @@ impl PlatformWindow for MacWindow {
                     }
                 }
             },
+            PlatformNativePopoverAnchor::ViewPoint { view, x, y } => unsafe {
+                if !view.is_null() {
+                    crate::native_controls::show_native_popover_relative_to_point(
+                        popover, view as id, x, y,
+                    );
+                }
+            },
         }
 
         this.popover = Some(MacPopoverState {
@@ -1839,6 +1846,28 @@ impl PlatformWindow for MacWindow {
                 };
                 crate::native_controls::set_native_panel_frame_top_left(panel, cocoa_x, cocoa_y);
                 crate::native_controls::show_native_panel(panel);
+            },
+            PlatformNativePanelAnchor::ViewPoint { view, x, y } => unsafe {
+                if let Some((screen_x, screen_y)) =
+                    view_point_to_screen_gpui_coordinates(view as id, x, y)
+                {
+                    let screen = NSWindow::screen(this.native_window);
+                    let (cocoa_x, cocoa_y) = if screen != nil {
+                        let screen_frame = NSScreen::frame(screen);
+                        (
+                            screen_x + screen_frame.origin.x,
+                            screen_frame.size.height - screen_y + screen_frame.origin.y,
+                        )
+                    } else {
+                        (screen_x, screen_y)
+                    };
+                    crate::native_controls::set_native_panel_frame_top_left(
+                        panel, cocoa_x, cocoa_y,
+                    );
+                    crate::native_controls::show_native_panel(panel);
+                } else {
+                    crate::native_controls::show_native_panel_centered(panel);
+                }
             },
             PlatformNativePanelAnchor::Centered => unsafe {
                 crate::native_controls::show_native_panel_centered(panel);
@@ -2622,6 +2651,42 @@ impl PlatformWindow for MacWindow {
             }
         }
         self.0.as_ref().lock().configuring_hosted_content = false;
+    }
+
+    fn attach_window_overlay_surface(&self, surface_view: *mut c_void) {
+        unsafe {
+            let native_window = self.0.lock().native_window;
+            let content_view: id = msg_send![native_window, contentView];
+            if content_view == nil || surface_view.is_null() {
+                return;
+            }
+
+            let surface_view = surface_view as id;
+            let current_superview: id = msg_send![surface_view, superview];
+            if current_superview != content_view {
+                if current_superview != nil {
+                    let _: () = msg_send![surface_view, removeFromSuperview];
+                }
+
+                let bounds: NSRect = msg_send![content_view, bounds];
+                let _: () = msg_send![surface_view, setFrame: bounds];
+                let _: () = msg_send![surface_view, setAutoresizingMask: 18u64];
+                let _: () = msg_send![content_view, addSubview: surface_view];
+            }
+        }
+    }
+
+    fn set_window_overlay_surface_hidden(&self, surface_view: *mut c_void, hidden: bool) {
+        unsafe {
+            if surface_view.is_null() {
+                return;
+            }
+            let _: () = msg_send![surface_view as id, setHidden: hidden as i8];
+        }
+    }
+
+    fn view_bounds_in_window(&self, view: *mut c_void) -> Option<Bounds<Pixels>> {
+        unsafe { view_bounds_in_window_gpui(view as id) }
     }
 
     fn window_state_ptr(&self) -> *const c_void {
@@ -4584,6 +4649,67 @@ unsafe fn view_screen_frame(view: id) -> Option<NSRect> {
         let window_rect: NSRect = msg_send![view, convertRect: bounds toView: nil];
         let screen_rect: NSRect = msg_send![window, convertRectToScreen: window_rect];
         Some(screen_rect)
+    }
+}
+
+unsafe fn view_bounds_in_window_gpui(view: id) -> Option<Bounds<Pixels>> {
+    unsafe {
+        if view == nil {
+            return None;
+        }
+
+        let window: id = msg_send![view, window];
+        if window == nil {
+            return None;
+        }
+
+        let content_view: id = msg_send![window, contentView];
+        if content_view == nil {
+            return None;
+        }
+
+        let bounds: NSRect = msg_send![view, bounds];
+        let rect_in_content: NSRect = msg_send![view, convertRect: bounds toView: content_view];
+        let content_bounds: NSRect = msg_send![content_view, bounds];
+
+        Some(Bounds::new(
+            point(
+                px(rect_in_content.origin.x as f32),
+                px((content_bounds.size.height
+                    - rect_in_content.origin.y
+                    - rect_in_content.size.height) as f32),
+            ),
+            size(
+                px(rect_in_content.size.width as f32),
+                px(rect_in_content.size.height as f32),
+            ),
+        ))
+    }
+}
+
+unsafe fn view_point_to_screen_gpui_coordinates(view: id, x: f64, y: f64) -> Option<(f64, f64)> {
+    unsafe {
+        if view == nil {
+            return None;
+        }
+
+        let window: id = msg_send![view, window];
+        if window == nil {
+            return None;
+        }
+
+        let local_point = NSPoint::new(x, y);
+        let window_point: NSPoint = msg_send![view, convertPoint: local_point toView: nil];
+        let screen_point: NSPoint = msg_send![window, convertPointToScreen: window_point];
+
+        let screen = NSWindow::screen(window);
+        if screen == nil {
+            return Some((screen_point.x, screen_point.y));
+        }
+
+        let screen_frame = NSScreen::frame(screen);
+        let screen_y = screen_frame.size.height - (screen_point.y - screen_frame.origin.y);
+        Some((screen_point.x - screen_frame.origin.x, screen_y))
     }
 }
 

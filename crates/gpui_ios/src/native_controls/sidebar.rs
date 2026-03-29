@@ -26,10 +26,7 @@ pub(crate) unsafe fn create_native_sidebar_view(
 }
 
 /// No-op on iOS — window configuration is managed by UIKit.
-pub(crate) unsafe fn configure_native_sidebar_window(
-    _view: id,
-    _window: *mut c_void,
-) {}
+pub(crate) unsafe fn configure_native_sidebar_window(_view: id, _window: *mut c_void) {}
 
 /// Sets the sidebar width by updating the frame.
 pub(crate) unsafe fn set_native_sidebar_width(_view: id, _width: f64) {
@@ -44,18 +41,12 @@ pub(crate) unsafe fn set_native_sidebar_collapsed(view: id, collapsed: bool) {
 }
 
 /// Sets sidebar items. No-op for the container — items are child views.
-pub(crate) unsafe fn set_native_sidebar_items(
-    _view: id,
-    _items: *mut c_void,
-) -> *mut c_void {
+pub(crate) unsafe fn set_native_sidebar_items(_view: id, _items: *mut c_void) -> *mut c_void {
     std::ptr::null_mut()
 }
 
 /// No-op on iOS.
-pub(crate) unsafe fn set_native_sidebar_header(
-    _view: id,
-    _title: &str,
-) {}
+pub(crate) unsafe fn set_native_sidebar_header(_view: id, _title: &str) {}
 
 /// Embeds a surface view in the sidebar content area.
 pub(crate) unsafe fn embed_surface_view_in_sidebar(host_view: id, surface_view: id) {
@@ -65,13 +56,7 @@ pub(crate) unsafe fn embed_surface_view_in_sidebar(host_view: id, surface_view: 
 }
 
 /// Sets the sidebar background color.
-pub(crate) unsafe fn set_native_sidebar_background_color(
-    view: id,
-    r: f64,
-    g: f64,
-    b: f64,
-    a: f64,
-) {
+pub(crate) unsafe fn set_native_sidebar_background_color(view: id, r: f64, g: f64, b: f64, a: f64) {
     unsafe {
         let color: id = msg_send![class!(UIColor),
             colorWithRed: r green: g blue: b alpha: a

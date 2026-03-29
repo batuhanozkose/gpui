@@ -938,6 +938,11 @@ pub enum PlatformNativePopoverContentItem {
 pub enum PlatformNativePopoverAnchor {
     ToolbarItem(SharedString),
     ContentElement(SharedString),
+    ViewPoint {
+        view: *mut std::ffi::c_void,
+        x: f64,
+        y: f64,
+    },
 }
 
 // =============================================================================
@@ -975,7 +980,15 @@ pub enum PlatformNativePanelMaterial {
 #[allow(missing_docs)]
 pub enum PlatformNativePanelAnchor {
     ToolbarItem(SharedString),
-    Point { x: f64, y: f64 },
+    Point {
+        x: f64,
+        y: f64,
+    },
+    ViewPoint {
+        view: *mut std::ffi::c_void,
+        x: f64,
+        y: f64,
+    },
     Centered,
 }
 
@@ -1212,6 +1225,22 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
         _surface_view: *mut std::ffi::c_void,
         _target: HostedSurfaceTarget,
     ) {
+    }
+
+    #[cfg(target_os = "macos")]
+    fn attach_window_overlay_surface(&self, _surface_view: *mut std::ffi::c_void) {}
+
+    #[cfg(target_os = "macos")]
+    fn set_window_overlay_surface_hidden(
+        &self,
+        _surface_view: *mut std::ffi::c_void,
+        _hidden: bool,
+    ) {
+    }
+
+    #[cfg(target_os = "macos")]
+    fn view_bounds_in_window(&self, _view: *mut std::ffi::c_void) -> Option<Bounds<Pixels>> {
+        None
     }
 
     #[cfg(target_os = "macos")]

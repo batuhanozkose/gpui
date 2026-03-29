@@ -457,12 +457,10 @@ pub(crate) unsafe fn release_native_panel(panel: id, delegate_ptr: *mut c_void) 
             if !callbacks_ptr.is_null() {
                 let callbacks = Box::from_raw(callbacks_ptr as *mut PanelCallbacks);
                 if callbacks.local_monitor != nil {
-                    let _: () =
-                        msg_send![class!(NSEvent), removeMonitor: callbacks.local_monitor];
+                    let _: () = msg_send![class!(NSEvent), removeMonitor: callbacks.local_monitor];
                 }
                 if callbacks.global_monitor != nil {
-                    let _: () =
-                        msg_send![class!(NSEvent), removeMonitor: callbacks.global_monitor];
+                    let _: () = msg_send![class!(NSEvent), removeMonitor: callbacks.global_monitor];
                 }
             }
             let _: () = msg_send![delegate, release];

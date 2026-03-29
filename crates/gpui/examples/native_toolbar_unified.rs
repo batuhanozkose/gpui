@@ -27,9 +27,7 @@ impl Render for UnifiedToolbarExample {
                                 NativeToolbarGroupOption::new("Reload").icon("arrow.clockwise"),
                             ],
                         )
-                        .control_representation(
-                            NativeToolbarGroupControlRepresentation::Expanded,
-                        )
+                        .control_representation(NativeToolbarGroupControlRepresentation::Expanded)
                         .selected_index(0)
                         .on_select(cx.listener(
                             |this, event: &NativeToolbarGroupEvent, _, cx| {

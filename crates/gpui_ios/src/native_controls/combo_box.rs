@@ -66,7 +66,9 @@ pub(crate) unsafe fn get_native_combo_box_string_value(combo: id) -> String {
         if utf8.is_null() {
             String::new()
         } else {
-            std::ffi::CStr::from_ptr(utf8).to_string_lossy().into_owned()
+            std::ffi::CStr::from_ptr(utf8)
+                .to_string_lossy()
+                .into_owned()
         }
     }
 }
@@ -85,14 +87,14 @@ pub(crate) unsafe fn set_native_combo_box_completes(_combo: id, _completes: bool
 pub(crate) unsafe fn set_native_combo_box_delegate(
     combo: id,
     callbacks: super::text_field::TextFieldCallbacks,
-) -> *mut c_void { unsafe {
-    super::text_field::set_native_text_field_delegate(combo, callbacks)
-}}
+) -> *mut c_void {
+    unsafe { super::text_field::set_native_text_field_delegate(combo, callbacks) }
+}
 
 /// Releases the combo box delegate.
-pub(crate) unsafe fn release_native_combo_box_delegate(delegate_ptr: *mut c_void) { unsafe {
-    super::text_field::release_native_text_field_delegate(delegate_ptr)
-}}
+pub(crate) unsafe fn release_native_combo_box_delegate(delegate_ptr: *mut c_void) {
+    unsafe { super::text_field::release_native_text_field_delegate(delegate_ptr) }
+}
 
 /// Releases a combo box (UITextField).
 pub(crate) unsafe fn release_native_combo_box(combo: id) {

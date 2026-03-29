@@ -1,11 +1,10 @@
 #![cfg(target_os = "ios")]
 use gpui::{
-    App, ClipboardEntry, ClipboardItem, Context, ExternalPaths, FocusHandle,
-    Focusable, Image, ImageFormat, KeyDownEvent, MouseButton, NativeImageSymbolWeight,
-    PathPromptOptions, PinchEvent, RotationEvent, Window, WindowAppearance, WindowOptions, div,
-    native_button, native_checkbox, native_image_view, native_progress_bar, native_slider,
-    native_stepper, native_switch, native_text_field, native_toggle_group, prelude::*, px, rgb,
-    rgba,
+    App, ClipboardEntry, ClipboardItem, Context, ExternalPaths, FocusHandle, Focusable, Image,
+    ImageFormat, KeyDownEvent, MouseButton, NativeImageSymbolWeight, PathPromptOptions, PinchEvent,
+    RotationEvent, Window, WindowAppearance, WindowOptions, div, native_button, native_checkbox,
+    native_image_view, native_progress_bar, native_slider, native_stepper, native_switch,
+    native_text_field, native_toggle_group, prelude::*, px, rgb, rgba,
 };
 use log::LevelFilter;
 use std::io::Write;

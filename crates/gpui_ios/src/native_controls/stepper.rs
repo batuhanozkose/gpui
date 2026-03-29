@@ -1,4 +1,4 @@
-use super::{id, ns_string, CALLBACK_IVAR, UI_CONTROL_EVENT_VALUE_CHANGED};
+use super::{CALLBACK_IVAR, UI_CONTROL_EVENT_VALUE_CHANGED, id, ns_string};
 use ctor::ctor;
 use objc::{
     class,
@@ -53,11 +53,15 @@ pub(crate) unsafe fn create_native_stepper(min: f64, max: f64, value: f64, incre
 }
 
 pub(crate) unsafe fn set_native_stepper_min(stepper: id, min: f64) {
-    unsafe { let _: () = msg_send![stepper, setMinimumValue: min]; }
+    unsafe {
+        let _: () = msg_send![stepper, setMinimumValue: min];
+    }
 }
 
 pub(crate) unsafe fn set_native_stepper_max(stepper: id, max: f64) {
-    unsafe { let _: () = msg_send![stepper, setMaximumValue: max]; }
+    unsafe {
+        let _: () = msg_send![stepper, setMaximumValue: max];
+    }
 }
 
 pub(crate) unsafe fn set_native_stepper_value(stepper: id, value: f64) {
@@ -69,15 +73,21 @@ pub(crate) unsafe fn set_native_stepper_value(stepper: id, value: f64) {
 }
 
 pub(crate) unsafe fn set_native_stepper_increment(stepper: id, increment: f64) {
-    unsafe { let _: () = msg_send![stepper, setStepValue: increment]; }
+    unsafe {
+        let _: () = msg_send![stepper, setStepValue: increment];
+    }
 }
 
 pub(crate) unsafe fn set_native_stepper_wraps(stepper: id, wraps: bool) {
-    unsafe { let _: () = msg_send![stepper, setWraps: wraps as i8]; }
+    unsafe {
+        let _: () = msg_send![stepper, setWraps: wraps as i8];
+    }
 }
 
 pub(crate) unsafe fn set_native_stepper_autorepeat(stepper: id, autorepeat: bool) {
-    unsafe { let _: () = msg_send![stepper, setAutorepeat: autorepeat as i8]; }
+    unsafe {
+        let _: () = msg_send![stepper, setAutorepeat: autorepeat as i8];
+    }
 }
 
 pub(crate) unsafe fn set_native_stepper_action(

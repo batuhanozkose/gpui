@@ -1,8 +1,8 @@
 use gpui::{
     App, Bounds, Context, NativePanel, NativePanelAnchor, NativePanelLevel, NativePanelStyle,
-    NativeToolbar, NativeToolbarButton, NativeToolbarClickEvent, NativeToolbarDisplayMode, NativeToolbarItem,
-    NativeToolbarSizeMode, SharedString, WeakEntity, Window, WindowAppearance, WindowBounds, WindowOptions,
-    div, prelude::*, px, rgb, size,
+    NativeToolbar, NativeToolbarButton, NativeToolbarClickEvent, NativeToolbarDisplayMode,
+    NativeToolbarItem, NativeToolbarSizeMode, SharedString, WeakEntity, Window, WindowAppearance,
+    WindowBounds, WindowOptions, div, prelude::*, px, rgb, size,
 };
 
 #[derive(Clone, Copy)]
@@ -49,7 +49,9 @@ impl ToolbarOverlayKind {
         match self {
             Self::Project => "Hosted GPUI content anchored below a native toolbar item.",
             Self::Branches => "This uses a transient borderless panel, not an NSPopover shell.",
-            Self::LanguageServers => "The overlay card is rendered by GPUI and owns its own styling.",
+            Self::LanguageServers => {
+                "The overlay card is rendered by GPUI and owns its own styling."
+            }
         }
     }
 
@@ -70,7 +72,10 @@ impl ToolbarOverlayKind {
             ],
             Self::Branches => [
                 ("main", "Stable integration branch"),
-                ("feature/toolbar-overlays", "Experimental hosted-overlay work"),
+                (
+                    "feature/toolbar-overlays",
+                    "Experimental hosted-overlay work",
+                ),
                 ("fix/sidebar-host", "Left-sidebar host cleanup"),
             ],
             Self::LanguageServers => [
@@ -238,7 +243,12 @@ struct ToolbarOverlayCard {
 }
 
 impl ToolbarOverlayCard {
-    fn render_row(&self, row: OverlayRow, hover: gpui::Rgba, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_row(
+        &self,
+        row: OverlayRow,
+        hover: gpui::Rgba,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let label = row.label;
         let detail = row.detail;
         let selected_label = label.clone();
@@ -303,10 +313,7 @@ impl Render for ToolbarOverlayCard {
             )
         };
 
-        let mut rows = div()
-            .flex()
-            .flex_col()
-            .gap_1();
+        let mut rows = div().flex().flex_col().gap_1();
         for row in self.rows.iter().cloned() {
             rows = rows.child(self.render_row(row, hover, cx));
         }
@@ -322,7 +329,12 @@ impl Render for ToolbarOverlayCard {
             .bg(background)
             .p_3()
             .text_color(foreground)
-            .child(div().text_sm().font_weight(gpui::FontWeight::SEMIBOLD).child(self.title.clone()))
+            .child(
+                div()
+                    .text_sm()
+                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                    .child(self.title.clone()),
+            )
             .child(
                 div()
                     .text_xs()
@@ -345,7 +357,8 @@ fn main() {
             |_window, cx| {
                 cx.new(|cx| ToolbarHostedOverlayExample {
                     toolbar_installed: false,
-                    status_message: "Choose a toolbar item to open a hosted GPUI overlay".to_string(),
+                    status_message: "Choose a toolbar item to open a hosted GPUI overlay"
+                        .to_string(),
                     overlay_card: cx.new(|_| ToolbarOverlayCard {
                         title: String::new(),
                         subtitle: String::new(),

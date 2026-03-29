@@ -1,13 +1,14 @@
 use std::ffi::c_void;
 
 use gpui::native_controls::{
-    AlertConfig, ButtonConfig, ButtonStyle, CheckboxConfig, CollectionViewConfig,
-    ComboBoxCallbacks, ComboBoxConfig, GlassEffectViewConfig, ImageViewConfig, MenuButtonConfig,
-    NativeControlState, NativeMenuItemData, NativeOutlineNodeData, OutlineViewConfig, PanelConfig,
-    PlatformNativeControls, PopoverConfig, PopupButtonConfig, ProgressConfig, SearchFieldConfig,
-    SegmentedControlConfig, SidebarViewConfig, SliderConfig, StackViewConfig, StepperConfig,
-    SwitchConfig, TabViewConfig, TableViewConfig, TextFieldCallbacks, TextFieldConfig,
-    TrackingViewConfig, VisualEffectViewConfig, ALERT_FIRST_BUTTON_RETURN,
+    ALERT_FIRST_BUTTON_RETURN, AlertConfig, ButtonConfig, ButtonStyle, CheckboxConfig,
+    CollectionViewConfig, ComboBoxCallbacks, ComboBoxConfig, GlassEffectViewConfig,
+    ImageViewConfig, MenuButtonConfig, NativeControlState, NativeMenuItemData,
+    NativeOutlineNodeData, OutlineViewConfig, PanelConfig, PlatformNativeControls, PopoverConfig,
+    PopupButtonConfig, ProgressConfig, SearchFieldConfig, SegmentedControlConfig,
+    SidebarViewConfig, SliderConfig, StackViewConfig, StepperConfig, SwitchConfig, TabViewConfig,
+    TableViewConfig, TextFieldCallbacks, TextFieldConfig, TrackingViewConfig,
+    VisualEffectViewConfig,
 };
 use gpui::{Bounds, Pixels};
 use objc::{class, msg_send, sel, sel_impl};
@@ -1533,7 +1534,7 @@ impl PlatformNativeControls for IosNativeControls {
     fn set_panel_origin(&self, state: &NativeControlState, x: f64, y: f64) {
         unsafe {
             let frame: ((f64, f64), (f64, f64)) = msg_send![state.view() as id, frame];
-            set_view_frame(state.view() as id, x, y, frame.1 .0, frame.1 .1);
+            set_view_frame(state.view() as id, x, y, frame.1.0, frame.1.1);
         }
     }
 
@@ -1544,7 +1545,7 @@ impl PlatformNativeControls for IosNativeControls {
     fn set_panel_size(&self, state: &NativeControlState, width: f64, height: f64) {
         unsafe {
             let frame: ((f64, f64), (f64, f64)) = msg_send![state.view() as id, frame];
-            set_view_frame(state.view() as id, frame.0 .0, frame.0 .1, width, height);
+            set_view_frame(state.view() as id, frame.0.0, frame.0.1, width, height);
         }
     }
 

@@ -284,6 +284,21 @@ pub(crate) unsafe fn show_native_popover_relative_to_view(popover: id, view: id)
     }
 }
 
+/// Shows the popover anchored to a single point in an NSView's coordinate space.
+pub(crate) unsafe fn show_native_popover_relative_to_point(popover: id, view: id, x: f64, y: f64) {
+    unsafe {
+        let anchor_rect = NSRect::new(NSPoint::new(x, y), NSSize::new(1.0, 1.0));
+        // NSMaxYEdge.
+        let preferred_edge = 3u64;
+        let _: () = msg_send![
+            popover,
+            showRelativeToRect: anchor_rect
+            ofView: view
+            preferredEdge: preferred_edge
+        ];
+    }
+}
+
 /// Closes the popover.
 pub(crate) unsafe fn dismiss_native_popover(popover: id) {
     unsafe {

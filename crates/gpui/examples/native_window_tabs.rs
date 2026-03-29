@@ -83,9 +83,12 @@ impl Render for WindowTabsExample {
             .bg(background)
             .text_color(foreground)
             .child(div().text_xl().child(self.title.clone()))
-            .child(div().text_sm().text_color(muted).child(
-                "These are ordinary windows merged into one native macOS tab group.",
-            ))
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(muted)
+                    .child("These are ordinary windows merged into one native macOS tab group."),
+            )
             .child(
                 div()
                     .text_sm()
@@ -137,12 +140,7 @@ fn open_tabbed_window(
 
 fn main() {
     gpui_platform::application().run(|cx: &mut App| {
-        let primary = open_tabbed_window(
-            cx,
-            "Window Tab A".into(),
-            "Primary tab window",
-            0.0,
-        );
+        let primary = open_tabbed_window(cx, "Window Tab A".into(), "Primary tab window", 0.0);
         open_tabbed_window(
             cx,
             "Window Tab B".into(),
