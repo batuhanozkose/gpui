@@ -777,6 +777,12 @@ impl NativeToolbarGroupOption {
         self.icon = Some(symbol_name.into());
         self
     }
+
+    /// Hides the text label and renders the option as icon-only.
+    pub fn icon_only(mut self) -> Self {
+        self.label = SharedString::default();
+        self
+    }
 }
 
 /// A grouped native toolbar control backed by AppKit's `NSToolbarItemGroup`.
@@ -1218,6 +1224,12 @@ impl NativeToolbarSegment {
     /// Sets an SF Symbol icon for this segment.
     pub fn icon(mut self, icon: impl Into<SharedString>) -> Self {
         self.icon = Some(icon.into());
+        self
+    }
+
+    /// Hides the text label and renders the segment as icon-only.
+    pub fn icon_only(mut self) -> Self {
+        self.label = SharedString::default();
         self
     }
 }
