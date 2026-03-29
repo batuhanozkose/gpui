@@ -14,20 +14,22 @@ use crate::{
     PlatformNativePanelMaterial, PlatformNativePanelStyle, PlatformNativePopover,
     PlatformNativePopoverAnchor, PlatformNativePopoverBehavior, PlatformNativePopoverContentItem,
     PlatformNativeSearchFieldTarget, PlatformNativeSearchSuggestionMenu, PlatformNativeToolbar,
-    PlatformNativeToolbarButtonItem, PlatformNativeToolbarComboBoxItem,
-    PlatformNativeToolbarDisplayMode, PlatformNativeToolbarItem, PlatformNativeToolbarLabelItem,
+    PlatformNativeToolbarBadge, PlatformNativeToolbarButtonItem, PlatformNativeToolbarComboBoxItem,
+    PlatformNativeToolbarControlGroupItem, PlatformNativeToolbarDisplayMode,
+    PlatformNativeToolbarGroupControlRepresentation, PlatformNativeToolbarGroupSelectionMode,
+    PlatformNativeToolbarItem, PlatformNativeToolbarItemStyle, PlatformNativeToolbarLabelItem,
     PlatformNativeToolbarMenuButtonItem, PlatformNativeToolbarMenuItemData,
     PlatformNativeToolbarPopUpItem, PlatformNativeToolbarSearchFieldItem,
-    PlatformNativeToolbarSegmentedItem, PlatformNativeToolbarSizeMode, PlatformWindow, Point,
-    PolychromeSprite, Priority, PromptButton, PromptLevel, Quad, Render, RenderGlyphParams,
-    RenderImage, RenderImageParams, RenderSvgParams, Replay, ResizeEdge, SMOOTH_SVG_SCALE_FACTOR,
-    SUBPIXEL_VARIANTS_X, SUBPIXEL_VARIANTS_Y, ScaledPixels, Scene, Shadow, SharedString, Size,
-    StrikethroughStyle, Style, SubpixelSprite, SubscriberSet, Subscription, SystemWindowTab,
-    SystemWindowTabController, TabStopMap, TaffyLayoutEngine, Task, TextRenderingMode, TextStyle,
-    TextStyleRefinement, ThermalState, TransformationMatrix, Underline, UnderlineStyle,
-    WindowAppearance, WindowBackgroundAppearance, WindowBounds, WindowControls, WindowDecorations,
-    WindowOptions, WindowParams, WindowTextSystem, point, prelude::*, px, rems, size,
-    transparent_black,
+    PlatformNativeToolbarSegmentedItem, PlatformNativeToolbarSizeMode,
+    PlatformNativeToolbarTabsItem, PlatformWindow, Point, PolychromeSprite, Priority, PromptButton,
+    PromptLevel, Quad, Render, RenderGlyphParams, RenderImage, RenderImageParams, RenderSvgParams,
+    Replay, ResizeEdge, SMOOTH_SVG_SCALE_FACTOR, SUBPIXEL_VARIANTS_X, SUBPIXEL_VARIANTS_Y,
+    ScaledPixels, Scene, Shadow, SharedString, Size, StrikethroughStyle, Style, SubpixelSprite,
+    SubscriberSet, Subscription, SystemWindowTab, SystemWindowTabController, TabStopMap,
+    TaffyLayoutEngine, Task, TextRenderingMode, TextStyle, TextStyleRefinement, ThermalState,
+    TransformationMatrix, Underline, UnderlineStyle, WindowAppearance, WindowBackgroundAppearance,
+    WindowBounds, WindowControls, WindowDecorations, WindowOptions, WindowParams,
+    WindowTabbingMode, WindowTextSystem, point, prelude::*, px, rems, size, transparent_black,
 };
 use anyhow::{Context as _, Result, anyhow};
 use collections::{FxHashMap, FxHashSet};
@@ -653,6 +655,259 @@ pub struct NativeToolbarMenuButtonSelectEvent {
     pub index: usize,
 }
 
+/// Visual emphasis for native toolbar items.
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub enum NativeToolbarItemStyle {
+    /// Preserve the platform's standard item appearance.
+    #[default]
+    Plain,
+    /// Emphasize the item as a primary action.
+    Prominent,
+}
+
+impl From<NativeToolbarItemStyle> for PlatformNativeToolbarItemStyle {
+    fn from(value: NativeToolbarItemStyle) -> Self {
+        match value {
+            NativeToolbarItemStyle::Plain => PlatformNativeToolbarItemStyle::Plain,
+            NativeToolbarItemStyle::Prominent => PlatformNativeToolbarItemStyle::Prominent,
+        }
+    }
+}
+
+/// Badge content displayed on a native toolbar item.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NativeToolbarBadge {
+    /// Displays a localized numeric count.
+    Count(usize),
+    /// Displays a short text badge.
+    Text(SharedString),
+    /// Displays a dot-style indicator badge.
+    Indicator,
+}
+
+/// Selection semantics for grouped toolbar controls.
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub enum NativeToolbarGroupSelectionMode {
+    /// Exactly one option is selected at a time.
+    #[default]
+    SelectOne,
+    /// Any combination of options may be selected.
+    SelectAny,
+    /// Options are only highlighted while pressed.
+    Momentary,
+}
+
+impl From<NativeToolbarGroupSelectionMode> for PlatformNativeToolbarGroupSelectionMode {
+    fn from(value: NativeToolbarGroupSelectionMode) -> Self {
+        match value {
+            NativeToolbarGroupSelectionMode::SelectOne => {
+                PlatformNativeToolbarGroupSelectionMode::SelectOne
+            }
+            NativeToolbarGroupSelectionMode::SelectAny => {
+                PlatformNativeToolbarGroupSelectionMode::SelectAny
+            }
+            NativeToolbarGroupSelectionMode::Momentary => {
+                PlatformNativeToolbarGroupSelectionMode::Momentary
+            }
+        }
+    }
+}
+
+/// Presentation mode for grouped toolbar controls.
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub enum NativeToolbarGroupControlRepresentation {
+    /// Let the system adapt to available space.
+    #[default]
+    Automatic,
+    /// Keep all controls expanded inline.
+    Expanded,
+    /// Collapse the control into a menu representation.
+    Collapsed,
+}
+
+impl From<NativeToolbarGroupControlRepresentation>
+    for PlatformNativeToolbarGroupControlRepresentation
+{
+    fn from(value: NativeToolbarGroupControlRepresentation) -> Self {
+        match value {
+            NativeToolbarGroupControlRepresentation::Automatic => {
+                PlatformNativeToolbarGroupControlRepresentation::Automatic
+            }
+            NativeToolbarGroupControlRepresentation::Expanded => {
+                PlatformNativeToolbarGroupControlRepresentation::Expanded
+            }
+            NativeToolbarGroupControlRepresentation::Collapsed => {
+                PlatformNativeToolbarGroupControlRepresentation::Collapsed
+            }
+        }
+    }
+}
+
+/// Event emitted when a native toolbar control group changes.
+#[derive(Clone, Debug)]
+pub struct NativeToolbarGroupEvent {
+    /// The identifier of the control group item.
+    pub item_id: SharedString,
+    /// The index that most recently changed.
+    pub selected_index: usize,
+    /// The full set of currently selected indexes.
+    pub selected_indices: Vec<usize>,
+}
+
+/// One option inside a native toolbar control group.
+#[derive(Clone, Debug)]
+pub struct NativeToolbarGroupOption {
+    /// The visible label for the option.
+    pub label: SharedString,
+    /// Optional SF Symbol shown alongside the label.
+    pub icon: Option<SharedString>,
+}
+
+impl NativeToolbarGroupOption {
+    /// Creates a group option with a visible label.
+    pub fn new(label: impl Into<SharedString>) -> Self {
+        Self {
+            label: label.into(),
+            icon: None,
+        }
+    }
+
+    /// Sets an SF Symbol to render for the option.
+    pub fn icon(mut self, symbol_name: impl Into<SharedString>) -> Self {
+        self.icon = Some(symbol_name.into());
+        self
+    }
+}
+
+/// A grouped native toolbar control backed by AppKit's `NSToolbarItemGroup`.
+pub struct NativeToolbarControlGroup {
+    id: SharedString,
+    items: Vec<NativeToolbarGroupOption>,
+    selection_mode: NativeToolbarGroupSelectionMode,
+    control_representation: NativeToolbarGroupControlRepresentation,
+    selected_indices: Vec<usize>,
+    on_select: Option<Box<dyn Fn(&NativeToolbarGroupEvent, &mut Window, &mut App) + 'static>>,
+}
+
+impl NativeToolbarControlGroup {
+    /// Creates a control group with a stable identifier and one or more items.
+    pub fn new(id: impl Into<SharedString>, items: Vec<NativeToolbarGroupOption>) -> Self {
+        Self {
+            id: id.into(),
+            items,
+            selection_mode: NativeToolbarGroupSelectionMode::SelectOne,
+            control_representation: NativeToolbarGroupControlRepresentation::Automatic,
+            selected_indices: vec![0],
+            on_select: None,
+        }
+    }
+
+    /// Sets how selection should behave.
+    pub fn selection_mode(mut self, selection_mode: NativeToolbarGroupSelectionMode) -> Self {
+        self.selection_mode = selection_mode;
+        self
+    }
+
+    /// Sets how the control should be represented in the toolbar.
+    pub fn control_representation(
+        mut self,
+        control_representation: NativeToolbarGroupControlRepresentation,
+    ) -> Self {
+        self.control_representation = control_representation;
+        self
+    }
+
+    /// Selects a single item, replacing any existing selection.
+    pub fn selected_index(mut self, index: usize) -> Self {
+        self.selected_indices = vec![index];
+        self
+    }
+
+    /// Selects an arbitrary set of items.
+    pub fn selected_indices(mut self, selected_indices: Vec<usize>) -> Self {
+        self.selected_indices = selected_indices;
+        self
+    }
+
+    /// Registers a callback invoked when the group changes.
+    pub fn on_select(
+        mut self,
+        listener: impl Fn(&NativeToolbarGroupEvent, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_select = Some(Box::new(listener));
+        self
+    }
+}
+
+/// Event emitted when toolbar-style tabs change selection.
+#[derive(Clone, Debug)]
+pub struct NativeToolbarTabEvent {
+    /// The identifier of the toolbar tabs item.
+    pub item_id: SharedString,
+    /// The selected tab index.
+    pub selected_index: usize,
+}
+
+/// One tab inside a toolbar-hosted tab strip.
+#[derive(Clone, Debug)]
+pub struct NativeToolbarTab {
+    /// The visible tab label.
+    pub label: SharedString,
+    /// Optional SF Symbol shown for the tab.
+    pub icon: Option<SharedString>,
+}
+
+impl NativeToolbarTab {
+    /// Creates a tab with a visible label.
+    pub fn new(label: impl Into<SharedString>) -> Self {
+        Self {
+            label: label.into(),
+            icon: None,
+        }
+    }
+
+    /// Sets an SF Symbol to display for the tab.
+    pub fn icon(mut self, symbol_name: impl Into<SharedString>) -> Self {
+        self.icon = Some(symbol_name.into());
+        self
+    }
+}
+
+/// A dedicated toolbar tabs item for switching primary window modes.
+pub struct NativeToolbarTabs {
+    id: SharedString,
+    tabs: Vec<NativeToolbarTab>,
+    selected_index: usize,
+    on_select: Option<Box<dyn Fn(&NativeToolbarTabEvent, &mut Window, &mut App) + 'static>>,
+}
+
+impl NativeToolbarTabs {
+    /// Creates a toolbar tabs item with a stable identifier and one or more tabs.
+    pub fn new(id: impl Into<SharedString>, tabs: Vec<NativeToolbarTab>) -> Self {
+        Self {
+            id: id.into(),
+            tabs,
+            selected_index: 0,
+            on_select: None,
+        }
+    }
+
+    /// Sets the initially selected tab.
+    pub fn selected_index(mut self, index: usize) -> Self {
+        self.selected_index = index;
+        self
+    }
+
+    /// Registers a callback invoked when the selected tab changes.
+    pub fn on_select(
+        mut self,
+        listener: impl Fn(&NativeToolbarTabEvent, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_select = Some(Box::new(listener));
+        self
+    }
+}
+
 /// Display mode for the native macOS toolbar.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum NativeToolbarDisplayMode {
@@ -710,6 +965,9 @@ pub struct NativeToolbarButton {
     icon: Option<SharedString>,
     image_url: Option<SharedString>,
     image_circular: bool,
+    style: NativeToolbarItemStyle,
+    background_tint: Option<NativeColor>,
+    badge: Option<NativeToolbarBadge>,
     hosted_view: Option<AnyView>,
     on_click: Option<Box<dyn Fn(&NativeToolbarClickEvent, &mut Window, &mut App) + 'static>>,
 }
@@ -724,6 +982,9 @@ impl NativeToolbarButton {
             icon: None,
             image_url: None,
             image_circular: false,
+            style: NativeToolbarItemStyle::Plain,
+            background_tint: None,
+            badge: None,
             hosted_view: None,
             on_click: None,
         }
@@ -751,6 +1012,24 @@ impl NativeToolbarButton {
     /// When true, the loaded image is clipped to a circle (for avatars).
     pub fn image_circular(mut self, circular: bool) -> Self {
         self.image_circular = circular;
+        self
+    }
+
+    /// Sets the item's visual emphasis.
+    pub fn style(mut self, style: NativeToolbarItemStyle) -> Self {
+        self.style = style;
+        self
+    }
+
+    /// Sets the background tint used for prominent items on macOS 26+.
+    pub fn background_tint(mut self, color: NativeColor) -> Self {
+        self.background_tint = Some(color);
+        self
+    }
+
+    /// Attaches a badge to the item on macOS 26+.
+    pub fn badge(mut self, badge: NativeToolbarBadge) -> Self {
+        self.badge = Some(badge);
         self
     }
 
@@ -1208,6 +1487,9 @@ pub struct NativeToolbarMenuButton {
     icon: Option<SharedString>,
     image_url: Option<SharedString>,
     image_circular: bool,
+    style: NativeToolbarItemStyle,
+    background_tint: Option<NativeColor>,
+    badge: Option<NativeToolbarBadge>,
     hosted_view: Option<AnyView>,
     shows_indicator: bool,
     items: Vec<NativeToolbarMenuItem>,
@@ -1229,6 +1511,9 @@ impl NativeToolbarMenuButton {
             icon: None,
             image_url: None,
             image_circular: false,
+            style: NativeToolbarItemStyle::Plain,
+            background_tint: None,
+            badge: None,
             hosted_view: None,
             shows_indicator: true,
             items,
@@ -1258,6 +1543,24 @@ impl NativeToolbarMenuButton {
     /// When true, the loaded image is clipped to a circle (for avatars).
     pub fn image_circular(mut self, circular: bool) -> Self {
         self.image_circular = circular;
+        self
+    }
+
+    /// Sets the item's visual emphasis.
+    pub fn style(mut self, style: NativeToolbarItemStyle) -> Self {
+        self.style = style;
+        self
+    }
+
+    /// Sets the background tint used for prominent items on macOS 26+.
+    pub fn background_tint(mut self, color: NativeColor) -> Self {
+        self.background_tint = Some(color);
+        self
+    }
+
+    /// Attaches a badge to the item on macOS 26+.
+    pub fn badge(mut self, badge: NativeToolbarBadge) -> Self {
+        self.badge = Some(badge);
         self
     }
 
@@ -1323,6 +1626,10 @@ pub enum NativeToolbarItem {
     SearchField(NativeToolbarSearchField),
     /// A segmented control item.
     SegmentedControl(NativeToolbarSegmentedControl),
+    /// A grouped toolbar control backed by `NSToolbarItemGroup`.
+    ControlGroup(NativeToolbarControlGroup),
+    /// A toolbar-hosted tab strip for switching primary views.
+    Tabs(NativeToolbarTabs),
     /// A popup button item.
     PopUpButton(NativeToolbarPopUpButton),
     /// A combo box item.
@@ -1359,6 +1666,19 @@ impl NativeToolbarItem {
         Self::SegmentedControl(NativeToolbarSegmentedControl::new(id, segments))
     }
 
+    /// Creates a grouped toolbar control item.
+    pub fn control_group(
+        id: impl Into<SharedString>,
+        items: Vec<NativeToolbarGroupOption>,
+    ) -> Self {
+        Self::ControlGroup(NativeToolbarControlGroup::new(id, items))
+    }
+
+    /// Creates a toolbar-hosted tab strip item.
+    pub fn tabs(id: impl Into<SharedString>, tabs: Vec<NativeToolbarTab>) -> Self {
+        Self::Tabs(NativeToolbarTabs::new(id, tabs))
+    }
+
     /// Creates a popup button item.
     pub fn popup_button(id: impl Into<SharedString>, items: Vec<SharedString>) -> Self {
         Self::PopUpButton(NativeToolbarPopUpButton::new(id, items))
@@ -1381,6 +1701,16 @@ impl NativeToolbarItem {
     /// Creates a text-only label item with no click behavior.
     pub fn label(id: impl Into<SharedString>, text: impl Into<SharedString>) -> Self {
         Self::Label(NativeToolbarLabel::new(id, text))
+    }
+
+    /// Creates a fixed-width spacer item.
+    pub fn space() -> Self {
+        Self::Space
+    }
+
+    /// Creates a flexible spacer item.
+    pub fn flexible_space() -> Self {
+        Self::FlexibleSpace
     }
 }
 
@@ -1485,6 +1815,9 @@ impl NativeToolbar {
                         icon: button.icon,
                         image_url: button.image_url,
                         image_circular: button.image_circular,
+                        style: button.style.into(),
+                        background_tint: button.background_tint.map(convert_native_toolbar_color),
+                        badge: button.badge.map(convert_native_toolbar_badge),
                         hosted_surface_view: None,
                         on_click,
                     })
@@ -1634,6 +1967,65 @@ impl NativeToolbar {
                         },
                     )
                 }
+                NativeToolbarItem::ControlGroup(group) => {
+                    let group_id = group.id.clone();
+                    let on_select = group.on_select.map(|handler| {
+                        schedule_native_toolbar_callback(
+                            Rc::new(handler),
+                            move |(selected_index, selected_indices): (usize, Vec<usize>)| {
+                                NativeToolbarGroupEvent {
+                                    item_id: group_id.clone(),
+                                    selected_index,
+                                    selected_indices,
+                                }
+                            },
+                            next_frame_callbacks.clone(),
+                            invalidator.clone(),
+                        )
+                    });
+
+                    let labels: Vec<SharedString> =
+                        group.items.iter().map(|item| item.label.clone()).collect();
+                    let icons: Vec<Option<SharedString>> =
+                        group.items.into_iter().map(|item| item.icon).collect();
+
+                    PlatformNativeToolbarItem::ControlGroup(PlatformNativeToolbarControlGroupItem {
+                        id: group.id,
+                        labels,
+                        icons,
+                        selection_mode: group.selection_mode.into(),
+                        control_representation: group.control_representation.into(),
+                        selected_indices: group.selected_indices,
+                        on_select,
+                    })
+                }
+                NativeToolbarItem::Tabs(tabs) => {
+                    let tabs_id = tabs.id.clone();
+                    let on_select = tabs.on_select.map(|handler| {
+                        schedule_native_toolbar_callback(
+                            Rc::new(handler),
+                            move |selected_index: usize| NativeToolbarTabEvent {
+                                item_id: tabs_id.clone(),
+                                selected_index,
+                            },
+                            next_frame_callbacks.clone(),
+                            invalidator.clone(),
+                        )
+                    });
+
+                    let labels: Vec<SharedString> =
+                        tabs.tabs.iter().map(|tab| tab.label.clone()).collect();
+                    let icons: Vec<Option<SharedString>> =
+                        tabs.tabs.into_iter().map(|tab| tab.icon).collect();
+
+                    PlatformNativeToolbarItem::Tabs(PlatformNativeToolbarTabsItem {
+                        id: tabs.id,
+                        labels,
+                        icons,
+                        selected_index: tabs.selected_index,
+                        on_select,
+                    })
+                }
                 NativeToolbarItem::PopUpButton(popup) => {
                     let popup_id = popup.id.clone();
                     let on_select = popup.on_select.map(|handler| {
@@ -1735,6 +2127,11 @@ impl NativeToolbar {
                         icon: menu_button.icon,
                         image_url: menu_button.image_url,
                         image_circular: menu_button.image_circular,
+                        style: menu_button.style.into(),
+                        background_tint: menu_button
+                            .background_tint
+                            .map(convert_native_toolbar_color),
+                        badge: menu_button.badge.map(convert_native_toolbar_badge),
                         hosted_surface_view: None,
                         shows_indicator: menu_button.shows_indicator,
                         items: convert_toolbar_menu_items(&menu_button.items),
@@ -1794,6 +2191,28 @@ fn convert_toolbar_menu_items(
             NativeToolbarMenuItem::Separator => PlatformNativeToolbarMenuItemData::Separator,
         })
         .collect()
+}
+
+fn convert_native_toolbar_color(color: NativeColor) -> PlatformNativeColor {
+    match color {
+        NativeColor::Red => PlatformNativeColor::Red,
+        NativeColor::Orange => PlatformNativeColor::Orange,
+        NativeColor::Yellow => PlatformNativeColor::Yellow,
+        NativeColor::Green => PlatformNativeColor::Green,
+        NativeColor::Blue => PlatformNativeColor::Blue,
+        NativeColor::Purple => PlatformNativeColor::Purple,
+        NativeColor::Gray => PlatformNativeColor::Gray,
+        NativeColor::Primary => PlatformNativeColor::Primary,
+        NativeColor::Secondary => PlatformNativeColor::Secondary,
+    }
+}
+
+fn convert_native_toolbar_badge(badge: NativeToolbarBadge) -> PlatformNativeToolbarBadge {
+    match badge {
+        NativeToolbarBadge::Count(count) => PlatformNativeToolbarBadge::Count(count),
+        NativeToolbarBadge::Text(text) => PlatformNativeToolbarBadge::Text(text),
+        NativeToolbarBadge::Indicator => PlatformNativeToolbarBadge::Indicator,
+    }
 }
 
 fn schedule_native_toolbar_callback_no_args<Event: 'static>(
@@ -3616,8 +4035,19 @@ impl Window {
             window_min_size,
             window_decorations,
             #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
+            window_tabs,
+            #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
             tabbing_identifier,
         } = options;
+
+        #[cfg(target_os = "macos")]
+        let (tabbing_identifier, tabbing_mode) = if let Some(window_tabs) = window_tabs {
+            (Some(window_tabs.identifier), window_tabs.mode)
+        } else if let Some(tabbing_identifier) = tabbing_identifier {
+            (Some(tabbing_identifier), WindowTabbingMode::Automatic)
+        } else {
+            (None, WindowTabbingMode::Disallowed)
+        };
 
         let window_bounds = window_bounds.unwrap_or_else(|| default_bounds(display_id, cx));
         let mut platform_window = cx.platform.open_window(
@@ -3635,6 +4065,8 @@ impl Window {
                 window_min_size,
                 #[cfg(target_os = "macos")]
                 tabbing_identifier,
+                #[cfg(target_os = "macos")]
+                tabbing_mode,
             },
         )?;
 
@@ -3864,52 +4296,150 @@ impl Window {
         platform_window.on_move_tab_to_new_window({
             let mut cx = cx.to_async();
             Box::new(move || {
-                handle
-                    .update(&mut cx, |_, _window, cx| {
-                        SystemWindowTabController::move_tab_to_new_window(cx, handle.window_id());
-                    })
-                    .log_err();
+                let result = handle.update(&mut cx, |_, _window, cx| {
+                    SystemWindowTabController::move_tab_to_new_window(cx, handle.window_id());
+                });
+                if let Err(error) = result {
+                    if error.to_string().contains("RefCell already borrowed") {
+                        let handle = handle;
+                        let mut retry_cx = cx.clone();
+                        cx.spawn(async move |cx| {
+                            cx.background_executor()
+                                .timer(Duration::from_millis(1))
+                                .await;
+                            handle
+                                .update(&mut retry_cx, |_, _window, cx| {
+                                    SystemWindowTabController::move_tab_to_new_window(
+                                        cx,
+                                        handle.window_id(),
+                                    );
+                                })
+                                .log_err();
+                        })
+                        .detach();
+                    } else {
+                        log::error!("{error:?}");
+                    }
+                }
             })
         });
         platform_window.on_merge_all_windows({
             let mut cx = cx.to_async();
             Box::new(move || {
-                handle
-                    .update(&mut cx, |_, _window, cx| {
-                        SystemWindowTabController::merge_all_windows(cx, handle.window_id());
-                    })
-                    .log_err();
+                let result = handle.update(&mut cx, |_, _window, cx| {
+                    SystemWindowTabController::merge_all_windows(cx, handle.window_id());
+                });
+                if let Err(error) = result {
+                    if error.to_string().contains("RefCell already borrowed") {
+                        let handle = handle;
+                        let mut retry_cx = cx.clone();
+                        cx.spawn(async move |cx| {
+                            cx.background_executor()
+                                .timer(Duration::from_millis(1))
+                                .await;
+                            handle
+                                .update(&mut retry_cx, |_, _window, cx| {
+                                    SystemWindowTabController::merge_all_windows(
+                                        cx,
+                                        handle.window_id(),
+                                    );
+                                })
+                                .log_err();
+                        })
+                        .detach();
+                    } else {
+                        log::error!("{error:?}");
+                    }
+                }
             })
         });
         platform_window.on_select_next_tab({
             let mut cx = cx.to_async();
             Box::new(move || {
-                handle
-                    .update(&mut cx, |_, _window, cx| {
-                        SystemWindowTabController::select_next_tab(cx, handle.window_id());
-                    })
-                    .log_err();
+                let result = handle.update(&mut cx, |_, _window, cx| {
+                    SystemWindowTabController::select_next_tab(cx, handle.window_id());
+                });
+                if let Err(error) = result {
+                    if error.to_string().contains("RefCell already borrowed") {
+                        let handle = handle;
+                        let mut retry_cx = cx.clone();
+                        cx.spawn(async move |cx| {
+                            cx.background_executor()
+                                .timer(Duration::from_millis(1))
+                                .await;
+                            handle
+                                .update(&mut retry_cx, |_, _window, cx| {
+                                    SystemWindowTabController::select_next_tab(
+                                        cx,
+                                        handle.window_id(),
+                                    );
+                                })
+                                .log_err();
+                        })
+                        .detach();
+                    } else {
+                        log::error!("{error:?}");
+                    }
+                }
             })
         });
         platform_window.on_select_previous_tab({
             let mut cx = cx.to_async();
             Box::new(move || {
-                handle
-                    .update(&mut cx, |_, _window, cx| {
-                        SystemWindowTabController::select_previous_tab(cx, handle.window_id())
-                    })
-                    .log_err();
+                let result = handle.update(&mut cx, |_, _window, cx| {
+                    SystemWindowTabController::select_previous_tab(cx, handle.window_id())
+                });
+                if let Err(error) = result {
+                    if error.to_string().contains("RefCell already borrowed") {
+                        let handle = handle;
+                        let mut retry_cx = cx.clone();
+                        cx.spawn(async move |cx| {
+                            cx.background_executor()
+                                .timer(Duration::from_millis(1))
+                                .await;
+                            handle
+                                .update(&mut retry_cx, |_, _window, cx| {
+                                    SystemWindowTabController::select_previous_tab(
+                                        cx,
+                                        handle.window_id(),
+                                    )
+                                })
+                                .log_err();
+                        })
+                        .detach();
+                    } else {
+                        log::error!("{error:?}");
+                    }
+                }
             })
         });
         platform_window.on_toggle_tab_bar({
             let mut cx = cx.to_async();
             Box::new(move || {
-                handle
-                    .update(&mut cx, |_, window, cx| {
-                        let tab_bar_visible = window.platform_window.tab_bar_visible();
-                        SystemWindowTabController::set_visible(cx, tab_bar_visible);
-                    })
-                    .log_err();
+                let result = handle.update(&mut cx, |_, window, cx| {
+                    let tab_bar_visible = window.platform_window.tab_bar_visible();
+                    SystemWindowTabController::set_visible(cx, tab_bar_visible);
+                });
+                if let Err(error) = result {
+                    if error.to_string().contains("RefCell already borrowed") {
+                        let handle = handle;
+                        let mut retry_cx = cx.clone();
+                        cx.spawn(async move |cx| {
+                            cx.background_executor()
+                                .timer(Duration::from_millis(1))
+                                .await;
+                            handle
+                                .update(&mut retry_cx, |_, window, cx| {
+                                    let tab_bar_visible = window.platform_window.tab_bar_visible();
+                                    SystemWindowTabController::set_visible(cx, tab_bar_visible);
+                                })
+                                .log_err();
+                        })
+                        .detach();
+                    } else {
+                        log::error!("{error:?}");
+                    }
+                }
             })
         });
 

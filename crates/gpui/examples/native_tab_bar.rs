@@ -857,6 +857,7 @@ fn main() {
                     MenuItem::action("Reopen Closed Tab", ReopenClosedTab),
                     MenuItem::separator(),
                 ],
+                disabled: false,
             },
             Menu {
                 name: "View".into(),
@@ -866,6 +867,7 @@ fn main() {
                     MenuItem::action("Next Tab", NextTab),
                     MenuItem::action("Previous Tab", PreviousTab),
                 ],
+                disabled: false,
             },
         ]);
 

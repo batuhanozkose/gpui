@@ -270,6 +270,38 @@ name = "native_toolbar"
 path = "examples/native_toolbar.rs"
 
 [[example]]
+name = "native_toolbar_unified"
+path = "examples/native_toolbar_unified.rs"
+
+[[example]]
+name = "native_toolbar_unified_compact"
+path = "examples/native_toolbar_unified_compact.rs"
+
+[[example]]
+name = "native_toolbar_expanded"
+path = "examples/native_toolbar_expanded.rs"
+
+[[example]]
+name = "native_toolbar_preference"
+path = "examples/native_toolbar_preference.rs"
+
+[[example]]
+name = "native_toolbar_spacing"
+path = "examples/native_toolbar_spacing.rs"
+
+[[example]]
+name = "native_toolbar_controls"
+path = "examples/native_toolbar_controls.rs"
+
+[[example]]
+name = "native_toolbar_tabs"
+path = "examples/native_toolbar_tabs.rs"
+
+[[example]]
+name = "native_window_tabs"
+path = "examples/native_window_tabs.rs"
+
+[[example]]
 name = "native_stepper"
 path = "examples/native_stepper.rs"
 

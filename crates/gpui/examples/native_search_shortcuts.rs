@@ -225,6 +225,7 @@ fn main() {
         cx.set_menus(vec![Menu {
             name: "View".into(),
             items: vec![MenuItem::action("Toggle Sidebar", ToggleSidebar)],
+            disabled: false,
         }]);
 
         let bounds = Bounds::centered(None, size(px(1260.0), px(820.0)), cx);

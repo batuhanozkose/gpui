@@ -606,6 +606,40 @@ pub enum PlatformNativeToolbarSizeMode {
     Small,
 }
 
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+#[allow(missing_docs)]
+pub enum PlatformNativeToolbarItemStyle {
+    #[default]
+    Plain,
+    Prominent,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(missing_docs)]
+pub enum PlatformNativeToolbarBadge {
+    Count(usize),
+    Text(SharedString),
+    Indicator,
+}
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+#[allow(missing_docs)]
+pub enum PlatformNativeToolbarGroupSelectionMode {
+    #[default]
+    SelectOne,
+    SelectAny,
+    Momentary,
+}
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+#[allow(missing_docs)]
+pub enum PlatformNativeToolbarGroupControlRepresentation {
+    #[default]
+    Automatic,
+    Expanded,
+    Collapsed,
+}
+
 #[allow(missing_docs)]
 pub struct PlatformNativeToolbar {
     pub identifier: SharedString,
@@ -623,6 +657,8 @@ pub enum PlatformNativeToolbarItem {
     FlexibleSpace,
     SearchField(PlatformNativeToolbarSearchFieldItem),
     SegmentedControl(PlatformNativeToolbarSegmentedItem),
+    ControlGroup(PlatformNativeToolbarControlGroupItem),
+    Tabs(PlatformNativeToolbarTabsItem),
     PopUpButton(PlatformNativeToolbarPopUpItem),
     ComboBox(PlatformNativeToolbarComboBoxItem),
     MenuButton(PlatformNativeToolbarMenuButtonItem),
@@ -646,6 +682,9 @@ pub struct PlatformNativeToolbarButtonItem {
     pub icon: Option<SharedString>,
     pub image_url: Option<SharedString>,
     pub image_circular: bool,
+    pub style: PlatformNativeToolbarItemStyle,
+    pub background_tint: Option<PlatformNativeColor>,
+    pub badge: Option<PlatformNativeToolbarBadge>,
     pub hosted_surface_view: Option<*mut std::ffi::c_void>,
     pub on_click: Option<Box<dyn Fn()>>,
 }
@@ -685,6 +724,26 @@ pub struct PlatformNativeToolbarSegmentedItem {
 }
 
 #[allow(missing_docs)]
+pub struct PlatformNativeToolbarControlGroupItem {
+    pub id: SharedString,
+    pub labels: Vec<SharedString>,
+    pub icons: Vec<Option<SharedString>>,
+    pub selection_mode: PlatformNativeToolbarGroupSelectionMode,
+    pub control_representation: PlatformNativeToolbarGroupControlRepresentation,
+    pub selected_indices: Vec<usize>,
+    pub on_select: Option<Box<dyn Fn((usize, Vec<usize>))>>,
+}
+
+#[allow(missing_docs)]
+pub struct PlatformNativeToolbarTabsItem {
+    pub id: SharedString,
+    pub labels: Vec<SharedString>,
+    pub icons: Vec<Option<SharedString>>,
+    pub selected_index: usize,
+    pub on_select: Option<Box<dyn Fn(usize)>>,
+}
+
+#[allow(missing_docs)]
 pub struct PlatformNativeToolbarPopUpItem {
     pub id: SharedString,
     pub items: Vec<SharedString>,
@@ -713,6 +772,9 @@ pub struct PlatformNativeToolbarMenuButtonItem {
     pub icon: Option<SharedString>,
     pub image_url: Option<SharedString>,
     pub image_circular: bool,
+    pub style: PlatformNativeToolbarItemStyle,
+    pub background_tint: Option<PlatformNativeColor>,
+    pub badge: Option<PlatformNativeToolbarBadge>,
     pub hosted_surface_view: Option<*mut std::ffi::c_void>,
     pub shows_indicator: bool,
     pub items: Vec<PlatformNativeToolbarMenuItemData>,
@@ -791,6 +853,33 @@ pub enum PlatformNativeColor {
     Primary,
     /// Secondary label color.
     Secondary,
+}
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+#[allow(missing_docs)]
+pub enum WindowToolbarStyle {
+    #[default]
+    Automatic,
+    Expanded,
+    Preference,
+    Unified,
+    UnifiedCompact,
+}
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+#[allow(missing_docs)]
+pub enum WindowTabbingMode {
+    Automatic,
+    Preferred,
+    #[default]
+    Disallowed,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(missing_docs)]
+pub struct WindowTabsOptions {
+    pub identifier: String,
+    pub mode: WindowTabbingMode,
 }
 
 #[allow(missing_docs)]
@@ -1920,6 +2009,9 @@ pub struct WindowOptions {
     /// Note that this may be ignored.
     pub window_decorations: Option<WindowDecorations>,
 
+    /// Structured configuration for native macOS window tabbing.
+    pub window_tabs: Option<WindowTabsOptions>,
+
     /// Tab group name, allows opening the window as a native tab on macOS 10.12+. Windows with the same tabbing identifier will be grouped together.
     pub tabbing_identifier: Option<String>,
 }
@@ -1972,6 +2064,8 @@ pub struct WindowParams {
     pub window_min_size: Option<Size<Pixels>>,
     #[cfg(target_os = "macos")]
     pub tabbing_identifier: Option<String>,
+    #[cfg(target_os = "macos")]
+    pub tabbing_mode: WindowTabbingMode,
 }
 
 /// Represents the status of how a window should be opened.
@@ -2017,6 +2111,7 @@ impl Default for WindowOptions {
                 title: Default::default(),
                 appears_transparent: Default::default(),
                 traffic_light_position: Default::default(),
+                toolbar_style: WindowToolbarStyle::Automatic,
             }),
             focus: true,
             show: true,
@@ -2029,6 +2124,7 @@ impl Default for WindowOptions {
             app_id: None,
             window_min_size: None,
             window_decorations: None,
+            window_tabs: None,
             tabbing_identifier: None,
         }
     }
@@ -2046,6 +2142,9 @@ pub struct TitlebarOptions {
 
     /// The position of the macOS traffic light buttons
     pub traffic_light_position: Option<Point<Pixels>>,
+
+    /// Specifies how the window's toolbar area should be rendered on macOS.
+    pub toolbar_style: WindowToolbarStyle,
 }
 
 /// The kind of window to create

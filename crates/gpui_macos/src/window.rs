@@ -30,11 +30,13 @@ use gpui::{
     PlatformNativePanelLevel, PlatformNativePanelMaterial, PlatformNativePanelStyle,
     PlatformNativePopover, PlatformNativePopoverAnchor, PlatformNativePopoverContentItem,
     PlatformNativeSearchFieldTarget, PlatformNativeSearchSuggestionMenu, PlatformNativeToolbar,
-    PlatformNativeToolbarDisplayMode, PlatformNativeToolbarItem, PlatformNativeToolbarMenuItemData,
+    PlatformNativeToolbarBadge, PlatformNativeToolbarDisplayMode,
+    PlatformNativeToolbarGroupSelectionMode, PlatformNativeToolbarItem,
+    PlatformNativeToolbarItemStyle, PlatformNativeToolbarMenuItemData,
     PlatformNativeToolbarSizeMode, PlatformSurface, PlatformWindow, Point, PromptButton,
     PromptLevel, RequestFrameOptions, SharedString, Size, SystemWindowTab, WindowAppearance,
-    WindowBackgroundAppearance, WindowBounds, WindowControlArea, WindowKind, WindowParams, point,
-    px, size,
+    WindowBackgroundAppearance, WindowBounds, WindowControlArea, WindowKind, WindowParams,
+    WindowTabbingMode, WindowToolbarStyle, point, px, size,
 };
 use image::RgbaImage;
 
@@ -491,6 +493,8 @@ impl ToolbarState {
             PlatformNativeToolbarItem::Button(item) => item.id.as_ref() == identifier,
             PlatformNativeToolbarItem::SearchField(item) => item.id.as_ref() == identifier,
             PlatformNativeToolbarItem::SegmentedControl(item) => item.id.as_ref() == identifier,
+            PlatformNativeToolbarItem::ControlGroup(item) => item.id.as_ref() == identifier,
+            PlatformNativeToolbarItem::Tabs(item) => item.id.as_ref() == identifier,
             PlatformNativeToolbarItem::PopUpButton(item) => item.id.as_ref() == identifier,
             PlatformNativeToolbarItem::ComboBox(item) => item.id.as_ref() == identifier,
             PlatformNativeToolbarItem::MenuButton(item) => item.id.as_ref() == identifier,
@@ -827,6 +831,7 @@ impl MacWindow {
             display_id,
             window_min_size,
             tabbing_identifier,
+            tabbing_mode,
         }: WindowParams,
         foreground_executor: ForegroundExecutor,
         background_executor: BackgroundExecutor,
@@ -835,7 +840,8 @@ impl MacWindow {
         unsafe {
             let pool = NSAutoreleasePool::new(nil);
 
-            let allows_automatic_window_tabbing = tabbing_identifier.is_some();
+            let allows_automatic_window_tabbing =
+                tabbing_identifier.is_some() && tabbing_mode != WindowTabbingMode::Disallowed;
             if allows_automatic_window_tabbing {
                 let () = msg_send![class!(NSWindow), setAllowsAutomaticWindowTabbing: YES];
             } else {
@@ -1018,9 +1024,22 @@ impl MacWindow {
                 });
             }
 
-            if titlebar.is_none_or(|titlebar| titlebar.appears_transparent) {
+            if titlebar
+                .as_ref()
+                .is_none_or(|titlebar| titlebar.appears_transparent)
+            {
                 native_window.setTitlebarAppearsTransparent_(YES);
                 native_window.setTitleVisibility_(NSWindowTitleVisibility::NSWindowTitleHidden);
+            }
+
+            let supports_toolbar_style: bool =
+                msg_send![native_window, respondsToSelector: sel!(setToolbarStyle:)];
+            if supports_toolbar_style
+                && let Some(toolbar_style) =
+                    titlebar.as_ref().map(|titlebar| titlebar.toolbar_style)
+                && toolbar_style != WindowToolbarStyle::Automatic
+            {
+                let _: () = msg_send![native_window, setToolbarStyle: window_toolbar_style_to_native(toolbar_style)];
             }
 
             native_view.setAutoresizingMask_(NSViewWidthSizable | NSViewHeightSizable);
@@ -1076,6 +1095,15 @@ impl MacWindow {
                         let _: () = msg_send![native_window, setTabbingIdentifier: tabbing_id];
                     } else {
                         let _: () = msg_send![native_window, setTabbingIdentifier:nil];
+                    }
+
+                    let supports_tabbing_mode: BOOL =
+                        msg_send![native_window, respondsToSelector: sel!(setTabbingMode:)];
+                    if supports_tabbing_mode == YES {
+                        let _: () = msg_send![
+                            native_window,
+                            setTabbingMode: window_tabbing_mode_to_native(tabbing_mode)
+                        ];
                     }
                 }
                 WindowKind::PopUp => {
@@ -3854,6 +3882,41 @@ fn toolbar_size_mode_to_native(mode: PlatformNativeToolbarSizeMode) -> NSUIntege
     }
 }
 
+fn window_toolbar_style_to_native(style: WindowToolbarStyle) -> NSInteger {
+    match style {
+        WindowToolbarStyle::Automatic => 0,
+        WindowToolbarStyle::Expanded => 1,
+        WindowToolbarStyle::Preference => 2,
+        WindowToolbarStyle::Unified => 3,
+        WindowToolbarStyle::UnifiedCompact => 4,
+    }
+}
+
+fn window_tabbing_mode_to_native(mode: WindowTabbingMode) -> NSInteger {
+    match mode {
+        WindowTabbingMode::Automatic => 0,
+        WindowTabbingMode::Preferred => 1,
+        WindowTabbingMode::Disallowed => 2,
+    }
+}
+
+fn toolbar_item_style_to_native(style: PlatformNativeToolbarItemStyle) -> NSInteger {
+    match style {
+        PlatformNativeToolbarItemStyle::Plain => 0,
+        PlatformNativeToolbarItemStyle::Prominent => 1,
+    }
+}
+
+fn toolbar_group_selection_mode_to_native(
+    selection_mode: PlatformNativeToolbarGroupSelectionMode,
+) -> NSInteger {
+    match selection_mode {
+        PlatformNativeToolbarGroupSelectionMode::SelectOne => 0,
+        PlatformNativeToolbarGroupSelectionMode::SelectAny => 1,
+        PlatformNativeToolbarGroupSelectionMode::Momentary => 2,
+    }
+}
+
 fn release_panel_targets(panel_state: &mut MacPanelState) {
     unsafe {
         for target in panel_state.button_targets.drain(..) {
@@ -4255,6 +4318,14 @@ unsafe fn build_native_toolbar_for_window(
                     allowed_item_identifiers.push(segmented.id.clone());
                     default_item_identifiers.push(segmented.id.clone());
                 }
+                PlatformNativeToolbarItem::ControlGroup(group) => {
+                    allowed_item_identifiers.push(group.id.clone());
+                    default_item_identifiers.push(group.id.clone());
+                }
+                PlatformNativeToolbarItem::Tabs(tabs) => {
+                    allowed_item_identifiers.push(tabs.id.clone());
+                    default_item_identifiers.push(tabs.id.clone());
+                }
                 PlatformNativeToolbarItem::PopUpButton(popup) => {
                     allowed_item_identifiers.push(popup.id.clone());
                     default_item_identifiers.push(popup.id.clone());
@@ -4318,7 +4389,13 @@ unsafe fn build_native_toolbar_for_window(
             let supports_toolbar_style: bool =
                 msg_send![native_window, respondsToSelector: sel!(setToolbarStyle:)];
             if supports_toolbar_style {
-                let _: () = msg_send![native_window, setToolbarStyle: 3i64];
+                let current_style: NSInteger = msg_send![native_window, toolbarStyle];
+                if current_style == window_toolbar_style_to_native(WindowToolbarStyle::Automatic) {
+                    let _: () = msg_send![
+                        native_window,
+                        setToolbarStyle: window_toolbar_style_to_native(WindowToolbarStyle::Unified)
+                    ];
+                }
             }
         }
 
@@ -4592,6 +4669,12 @@ extern "C" fn toolbar_item_for_identifier(
             Some(PlatformNativeToolbarItem::SegmentedControl(_)) => {
                 create_toolbar_segmented_item(this, state, identifier, &identifier_string)
             }
+            Some(PlatformNativeToolbarItem::ControlGroup(_)) => {
+                create_toolbar_control_group_item(this, state, identifier, &identifier_string)
+            }
+            Some(PlatformNativeToolbarItem::Tabs(_)) => {
+                create_toolbar_tabs_item(this, state, identifier, &identifier_string)
+            }
             Some(PlatformNativeToolbarItem::PopUpButton(_)) => {
                 create_toolbar_popup_item(this, state, identifier, &identifier_string)
             }
@@ -4631,6 +4714,56 @@ extern "C" fn release_toolbar_item_on_main(context: *mut c_void) {
     unsafe {
         let item = context as id;
         let _: () = msg_send![item, release];
+    }
+}
+
+unsafe fn create_ns_item_badge(badge: &PlatformNativeToolbarBadge) -> id {
+    unsafe {
+        match badge {
+            PlatformNativeToolbarBadge::Count(count) => {
+                msg_send![class!(NSItemBadge), badgeWithCount: *count as NSInteger]
+            }
+            PlatformNativeToolbarBadge::Text(text) => {
+                msg_send![class!(NSItemBadge), badgeWithText: ns_string(text.as_ref())]
+            }
+            PlatformNativeToolbarBadge::Indicator => {
+                msg_send![class!(NSItemBadge), indicatorBadge]
+            }
+        }
+    }
+}
+
+unsafe fn apply_toolbar_item_chrome(
+    toolbar_item: id,
+    style: PlatformNativeToolbarItemStyle,
+    background_tint: Option<gpui::PlatformNativeColor>,
+    badge: Option<PlatformNativeToolbarBadge>,
+) {
+    unsafe {
+        let supports_style: BOOL = msg_send![toolbar_item, respondsToSelector: sel!(setStyle:)];
+        if supports_style == YES {
+            let _: () = msg_send![
+                toolbar_item,
+                setStyle: toolbar_item_style_to_native(style)
+            ];
+        }
+
+        if let Some(background_tint) = background_tint {
+            let supports_tint: BOOL =
+                msg_send![toolbar_item, respondsToSelector: sel!(setBackgroundTintColor:)];
+            if supports_tint == YES {
+                let color = crate::native_controls::ns_color_for_platform_color(background_tint);
+                let _: () = msg_send![toolbar_item, setBackgroundTintColor: color];
+            }
+        }
+
+        if let Some(badge) = badge {
+            let supports_badge: BOOL = msg_send![toolbar_item, respondsToSelector: sel!(setBadge:)];
+            if supports_badge == YES {
+                let badge = create_ns_item_badge(&badge);
+                let _: () = msg_send![toolbar_item, setBadge: badge];
+            }
+        }
     }
 }
 
@@ -4736,6 +4869,9 @@ unsafe fn create_toolbar_button_item(
         let icon = item.icon.clone();
         let image_url = item.image_url.clone();
         let image_circular = item.image_circular;
+        let style = item.style;
+        let background_tint = item.background_tint;
+        let badge = item.badge.clone();
         let hosted_surface_view = item.hosted_surface_view;
 
         let toolbar_item: id = msg_send![class!(NSToolbarItem), alloc];
@@ -4827,6 +4963,7 @@ unsafe fn create_toolbar_button_item(
         }
 
         let _: () = msg_send![toolbar_item, setLabel: ns_string(label.as_ref())];
+        apply_toolbar_item_chrome(toolbar_item, style, background_tint, badge);
         let size: NSSize = msg_send![host_view, fittingSize];
         let _: () = msg_send![toolbar_item, setMinSize: size];
         let _: () = msg_send![toolbar_item, setMaxSize: size];
@@ -5033,6 +5170,136 @@ unsafe fn create_toolbar_segmented_item(
     }
 }
 
+unsafe fn create_toolbar_control_group_item(
+    this: &Object,
+    state: &mut ToolbarState,
+    identifier: id,
+    identifier_string: &str,
+) -> id {
+    unsafe {
+        let Some(PlatformNativeToolbarItem::ControlGroup(item)) =
+            state.item_for_identifier(identifier_string)
+        else {
+            return nil;
+        };
+
+        let labels: Vec<&str> = item.labels.iter().map(|label| label.as_ref()).collect();
+        let selected_index = item.selected_indices.first().copied();
+
+        let toolbar_item: id = msg_send![class!(NSToolbarItem), alloc];
+        let toolbar_item: id = msg_send![toolbar_item, initWithItemIdentifier: identifier];
+        let control = crate::native_controls::create_native_segmented_control_with_tracking_mode(
+            &labels,
+            selected_index,
+            toolbar_group_selection_mode_to_native(item.selection_mode),
+        );
+
+        for (segment_index, icon) in item.icons.iter().enumerate() {
+            if let Some(symbol_name) = icon {
+                crate::native_controls::set_native_segmented_image(
+                    control,
+                    segment_index,
+                    symbol_name.as_ref(),
+                );
+            }
+        }
+        for index in &item.selected_indices {
+            let _: () = msg_send![control, setSelected: YES forSegment: *index as NSInteger];
+        }
+
+        let state_ptr: *mut c_void = *this.get_ivar(TOOLBAR_STATE_IVAR);
+        let callback_identifier = identifier_string.to_owned();
+        let segment_count = item.labels.len();
+        let action = Box::new(move |selected_index: usize| {
+            let mut selected_indices = Vec::new();
+            for index in 0..segment_count {
+                let is_selected: BOOL =
+                    msg_send![control, isSelectedForSegment: index as NSInteger];
+                if is_selected == YES {
+                    selected_indices.push(index);
+                }
+            }
+
+            let state = &*(state_ptr as *const ToolbarState);
+            if let Some(PlatformNativeToolbarItem::ControlGroup(group_item)) =
+                state.item_for_identifier(&callback_identifier)
+                && let Some(callback) = group_item.on_select.as_ref()
+            {
+                callback((selected_index, selected_indices));
+            }
+        });
+        let target = crate::native_controls::set_native_segmented_action(control, action);
+        let size: NSSize = msg_send![control, fittingSize];
+        let _: () = msg_send![toolbar_item, setMinSize: size];
+        let _: () = msg_send![toolbar_item, setMaxSize: size];
+        let _: () = msg_send![toolbar_item, setView: control];
+
+        state
+            .resources
+            .push(ToolbarNativeResource::SegmentedControl { control, target });
+
+        msg_send![toolbar_item, autorelease]
+    }
+}
+
+unsafe fn create_toolbar_tabs_item(
+    this: &Object,
+    state: &mut ToolbarState,
+    identifier: id,
+    identifier_string: &str,
+) -> id {
+    unsafe {
+        let Some(PlatformNativeToolbarItem::Tabs(item)) =
+            state.item_for_identifier(identifier_string)
+        else {
+            return nil;
+        };
+
+        let labels: Vec<&str> = item.labels.iter().map(|label| label.as_ref()).collect();
+        let toolbar_item: id = msg_send![class!(NSToolbarItem), alloc];
+        let toolbar_item: id = msg_send![toolbar_item, initWithItemIdentifier: identifier];
+        let control = crate::native_controls::create_native_segmented_control_with_tracking_mode(
+            &labels,
+            Some(item.selected_index),
+            toolbar_group_selection_mode_to_native(
+                PlatformNativeToolbarGroupSelectionMode::SelectOne,
+            ),
+        );
+        for (segment_index, icon) in item.icons.iter().enumerate() {
+            if let Some(symbol_name) = icon {
+                crate::native_controls::set_native_segmented_image(
+                    control,
+                    segment_index,
+                    symbol_name.as_ref(),
+                );
+            }
+        }
+
+        let state_ptr: *mut c_void = *this.get_ivar(TOOLBAR_STATE_IVAR);
+        let callback_identifier = identifier_string.to_owned();
+        let action = Box::new(move |selected_index: usize| {
+            let state = &*(state_ptr as *const ToolbarState);
+            if let Some(PlatformNativeToolbarItem::Tabs(tabs_item)) =
+                state.item_for_identifier(&callback_identifier)
+                && let Some(callback) = tabs_item.on_select.as_ref()
+            {
+                callback(selected_index);
+            }
+        });
+        let target = crate::native_controls::set_native_segmented_action(control, action);
+        let size: NSSize = msg_send![control, fittingSize];
+        let _: () = msg_send![toolbar_item, setMinSize: size];
+        let _: () = msg_send![toolbar_item, setMaxSize: size];
+        let _: () = msg_send![toolbar_item, setView: control];
+
+        state
+            .resources
+            .push(ToolbarNativeResource::SegmentedControl { control, target });
+
+        msg_send![toolbar_item, autorelease]
+    }
+}
+
 unsafe fn create_toolbar_popup_item(
     this: &Object,
     state: &mut ToolbarState,
@@ -5226,6 +5493,9 @@ unsafe fn create_toolbar_menu_button_item(
         let icon = item.icon.clone();
         let image_url = item.image_url.clone();
         let image_circular = item.image_circular;
+        let style = item.style;
+        let background_tint = item.background_tint;
+        let badge = item.badge.clone();
         let hosted_surface_view = item.hosted_surface_view;
         let shows_indicator = item.shows_indicator;
         let native_menu_items = convert_platform_menu_items_to_native(&item.items);
@@ -5291,6 +5561,7 @@ unsafe fn create_toolbar_menu_button_item(
             let _: () = msg_send![container, addSubview: button];
 
             let _: () = msg_send![toolbar_item, setLabel: ns_string(label.as_ref())];
+            apply_toolbar_item_chrome(toolbar_item, style, background_tint, badge);
             let fitted_size: NSSize = msg_send![container, fittingSize];
             let _: () = msg_send![toolbar_item, setMinSize: fitted_size];
             let _: () = msg_send![toolbar_item, setMaxSize: fitted_size];
@@ -5316,6 +5587,7 @@ unsafe fn create_toolbar_menu_button_item(
 
             let _: () = msg_send![toolbar_item, setLabel: ns_string(label.as_ref())];
             let _: () = msg_send![toolbar_item, setShowsIndicator: shows_indicator as BOOL];
+            apply_toolbar_item_chrome(toolbar_item, style, background_tint, badge);
 
             if let Some(tool_tip) = tool_tip.as_ref() {
                 let _: () = msg_send![toolbar_item, setToolTip: ns_string(tool_tip.as_ref())];

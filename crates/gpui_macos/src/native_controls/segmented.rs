@@ -55,6 +55,16 @@ pub(crate) unsafe fn create_native_segmented_control(
     labels: &[&str],
     selected_index: Option<usize>,
 ) -> id {
+    unsafe { create_native_segmented_control_with_tracking_mode(labels, selected_index, 0) }
+}
+
+/// Creates a new NSSegmentedControl with a specific tracking mode.
+/// 0 = select one, 1 = select any, 2 = momentary.
+pub(crate) unsafe fn create_native_segmented_control_with_tracking_mode(
+    labels: &[&str],
+    selected_index: Option<usize>,
+    tracking_mode: i64,
+) -> id {
     unsafe {
         use super::super::ns_string;
 
@@ -69,7 +79,7 @@ pub(crate) unsafe fn create_native_segmented_control(
         let control: id = msg_send![
             class!(NSSegmentedControl),
             segmentedControlWithLabels: labels_array
-            trackingMode: 0i64
+            trackingMode: tracking_mode
             target: nil
             action: nil
         ];
@@ -123,7 +133,6 @@ pub(crate) unsafe fn set_native_segmented_image(control: id, segment: usize, sym
         ];
         if image != nil {
             let _: () = msg_send![control, setImage: image forSegment: segment as i64];
-            let _: () = msg_send![control, setLabel: ns_string("") forSegment: segment as i64];
         }
     }
 }
