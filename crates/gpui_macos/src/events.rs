@@ -118,33 +118,6 @@ unsafe fn secondary_fn_flag(native_event: id) -> bool {
         .contains(CGEventFlags::CGEventFlagSecondaryFn)
 }
 
-unsafe fn log_native_key_event(native_event: id, stage: &str) {
-    let key_code = unsafe { native_event.keyCode() };
-    let chars = unsafe { native_event.characters().to_str().to_string() };
-    let chars_ignoring = unsafe {
-        native_event
-            .charactersIgnoringModifiers()
-            .to_str()
-            .to_string()
-    };
-    let modifiers = unsafe { native_event.modifierFlags() };
-    let secondary_fn = unsafe { secondary_fn_flag(native_event) };
-
-    let should_log = matches!(chars_ignoring.as_str(), "e" | "d" | "f")
-        || modifiers.contains(NSEventModifierFlags::NSFunctionKeyMask)
-        || secondary_fn;
-
-    if should_log {
-        log::info!(
-            "[gpui_macos::native_key] stage={stage} keyCode=0x{:X} raw_flags=0x{:X} chars={chars:?} charsIgnoring={chars_ignoring:?} ns_fn={} cg_secondary_fn={}",
-            key_code,
-            modifiers.bits(),
-            modifiers.contains(NSEventModifierFlags::NSFunctionKeyMask),
-            secondary_fn,
-        );
-    }
-}
-
 pub(crate) unsafe fn platform_input_from_native(
     native_event: id,
     window_height: Option<Pixels>,
@@ -174,7 +147,6 @@ pub(crate) unsafe fn platform_input_from_native(
                 }))
             }
             NSEventType::NSKeyDown => {
-                log_native_key_event(native_event, "platform_input_key_down");
                 let keystroke = parse_keystroke(native_event);
                 let prefer_character_input = keystroke.key_char.is_some()
                     && !keystroke.modifiers.control
@@ -187,7 +159,6 @@ pub(crate) unsafe fn platform_input_from_native(
                 }))
             }
             NSEventType::NSKeyUp => {
-                log_native_key_event(native_event, "platform_input_key_up");
                 Some(PlatformInput::KeyUp(KeyUpEvent {
                     keystroke: parse_keystroke(native_event),
                 }))

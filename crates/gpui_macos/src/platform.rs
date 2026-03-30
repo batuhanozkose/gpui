@@ -67,24 +67,6 @@ static mut APP_DELEGATE_CLASS: *const Class = ptr::null();
 
 extern "C" fn send_event(this: &mut Object, _: Sel, event: id) {
     unsafe {
-        let event_type: u64 = msg_send![event, type];
-        if event_type == 10 || event_type == 11 {
-            let key_code: u16 = msg_send![event, keyCode];
-            let chars = event.characters().to_str().to_string();
-            let chars_ignoring = event.charactersIgnoringModifiers().to_str().to_string();
-            let modifiers = event.modifierFlags();
-
-            if matches!(chars_ignoring.as_str(), "e" | "d" | "f") || modifiers.bits() == 0x100 {
-                log::info!(
-                    "[gpui_macos::app_send_event] type={} keyCode=0x{:X} raw_flags=0x{:X} chars={chars:?} charsIgnoring={chars_ignoring:?} ns_fn={}",
-                    event_type,
-                    key_code,
-                    modifiers.bits(),
-                    modifiers.contains(NSEventModifierFlags::NSFunctionKeyMask),
-                );
-            }
-        }
-
         let _: () = msg_send![super(this, class!(NSApplication)), sendEvent: event];
     }
 }
