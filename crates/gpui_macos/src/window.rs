@@ -1396,9 +1396,6 @@ impl PlatformWindow for MacWindow {
         let mut this = self.0.lock();
         this.toolbar = new_toolbar;
         this.configuring_hosted_content = false;
-        drop(this);
-
-        notify_button_layout_changed(self.0.as_ref());
     }
 
     fn focus_native_search_field(&self, target: PlatformNativeSearchFieldTarget, select_all: bool) {
@@ -2887,8 +2884,23 @@ extern "C" fn handle_key_equivalent(this: &Object, _: Sel, native_event: id) -> 
         let window_height = window_state.as_ref().lock().content_size().height;
         let event = unsafe { platform_input_from_native(native_event, Some(window_height), None) };
         if let Some(PlatformInput::KeyDown(key_down_event)) = event {
-            let ks = &key_down_event.keystroke;
-            if ks.modifiers.platform && !is_field_editor_shortcut(ks) {
+            let should_log = matches!(key_down_event.keystroke.key.as_str(), "e" | "d" | "f")
+                || key_down_event.keystroke.modifiers.function;
+            if should_log {
+                log::info!(
+                    "[gpui_macos::keyeq] field_editor key={} key_char={:?} cmd={} ctrl={} alt={} shift={} fn={}",
+                    key_down_event.keystroke.key,
+                    key_down_event.keystroke.key_char,
+                    key_down_event.keystroke.modifiers.platform,
+                    key_down_event.keystroke.modifiers.control,
+                    key_down_event.keystroke.modifiers.alt,
+                    key_down_event.keystroke.modifiers.shift,
+                    key_down_event.keystroke.modifiers.function,
+                );
+            }
+            if key_down_event.keystroke.modifiers.platform
+                && !is_field_editor_shortcut(&key_down_event.keystroke)
+            {
                 let mut callback = window_state.as_ref().lock().event_callback.take();
                 let handled: BOOL = if let Some(callback) = callback.as_mut() {
                     !callback(PlatformInput::KeyDown(key_down_event)).propagate as BOOL
@@ -2896,6 +2908,12 @@ extern "C" fn handle_key_equivalent(this: &Object, _: Sel, native_event: id) -> 
                     NO
                 };
                 window_state.as_ref().lock().event_callback = callback;
+                if should_log {
+                    log::info!(
+                        "[gpui_macos::keyeq] field_editor callback handled={}",
+                        handled == YES
+                    );
+                }
                 if handled == YES {
                     return YES;
                 }
@@ -2903,6 +2921,26 @@ extern "C" fn handle_key_equivalent(this: &Object, _: Sel, native_event: id) -> 
         }
 
         return NO;
+    }
+    {
+        let window_state = unsafe { get_window_state(this) };
+        let window_height = window_state.as_ref().lock().content_size().height;
+        if let Some(PlatformInput::KeyDown(key_down_event)) =
+            unsafe { platform_input_from_native(native_event, Some(window_height), None) }
+            && (matches!(key_down_event.keystroke.key.as_str(), "e" | "d" | "f")
+                || key_down_event.keystroke.modifiers.function)
+        {
+            log::info!(
+                "[gpui_macos::keyeq] passthrough key={} key_char={:?} cmd={} ctrl={} alt={} shift={} fn={}",
+                key_down_event.keystroke.key,
+                key_down_event.keystroke.key_char,
+                key_down_event.keystroke.modifiers.platform,
+                key_down_event.keystroke.modifiers.control,
+                key_down_event.keystroke.modifiers.alt,
+                key_down_event.keystroke.modifiers.shift,
+                key_down_event.keystroke.modifiers.function,
+            );
+        }
     }
     handle_key_event(this, native_event, true)
 }
@@ -2927,10 +2965,50 @@ extern "C" fn handle_key_down(this: &Object, _: Sel, native_event: id) {
     if is_native_field_editor_active(this) {
         return;
     }
+    {
+        let window_state = unsafe { get_window_state(this) };
+        let window_height = window_state.as_ref().lock().content_size().height;
+        if let Some(PlatformInput::KeyDown(key_down_event)) =
+            unsafe { platform_input_from_native(native_event, Some(window_height), None) }
+            && (matches!(key_down_event.keystroke.key.as_str(), "e" | "d" | "f")
+                || key_down_event.keystroke.modifiers.function)
+        {
+            log::info!(
+                "[gpui_macos::key_down_entry] key={} key_char={:?} cmd={} ctrl={} alt={} shift={} fn={}",
+                key_down_event.keystroke.key,
+                key_down_event.keystroke.key_char,
+                key_down_event.keystroke.modifiers.platform,
+                key_down_event.keystroke.modifiers.control,
+                key_down_event.keystroke.modifiers.alt,
+                key_down_event.keystroke.modifiers.shift,
+                key_down_event.keystroke.modifiers.function,
+            );
+        }
+    }
     handle_key_event(this, native_event, false);
 }
 
 extern "C" fn handle_key_up(this: &Object, _: Sel, native_event: id) {
+    {
+        let window_state = unsafe { get_window_state(this) };
+        let window_height = window_state.as_ref().lock().content_size().height;
+        if let Some(PlatformInput::KeyUp(key_up_event)) =
+            unsafe { platform_input_from_native(native_event, Some(window_height), None) }
+            && (matches!(key_up_event.keystroke.key.as_str(), "e" | "d" | "f")
+                || key_up_event.keystroke.modifiers.function)
+        {
+            log::info!(
+                "[gpui_macos::key_up_entry] key={} key_char={:?} cmd={} ctrl={} alt={} shift={} fn={}",
+                key_up_event.keystroke.key,
+                key_up_event.keystroke.key_char,
+                key_up_event.keystroke.modifiers.platform,
+                key_up_event.keystroke.modifiers.control,
+                key_up_event.keystroke.modifiers.alt,
+                key_up_event.keystroke.modifiers.shift,
+                key_up_event.keystroke.modifiers.function,
+            );
+        }
+    }
     handle_key_event(this, native_event, false);
 }
 
@@ -2977,6 +3055,22 @@ extern "C" fn handle_key_event(this: &Object, native_event: id, key_equivalent: 
 
     match event {
         PlatformInput::KeyDown(key_down_event) => {
+            if matches!(key_down_event.keystroke.key.as_str(), "e" | "d" | "f")
+                || key_down_event.keystroke.modifiers.function
+            {
+                log::info!(
+                    "[gpui_macos::dispatch_key] equivalent={} key={} key_char={:?} cmd={} ctrl={} alt={} shift={} fn={} held={} composing_check_pending",
+                    key_equivalent,
+                    key_down_event.keystroke.key,
+                    key_down_event.keystroke.key_char,
+                    key_down_event.keystroke.modifiers.platform,
+                    key_down_event.keystroke.modifiers.control,
+                    key_down_event.keystroke.modifiers.alt,
+                    key_down_event.keystroke.modifiers.shift,
+                    key_down_event.keystroke.modifiers.function,
+                    key_down_event.is_held,
+                );
+            }
             // For certain keystrokes, macOS will first dispatch a "key equivalent" event.
             // If that event isn't handled, it will then dispatch a "key down" event. GPUI
             // makes no distinction between these two types of events, so we need to ignore
@@ -3021,17 +3115,57 @@ extern "C" fn handle_key_event(this: &Object, native_event: id, key_equivalent: 
                     let input_context: id = msg_send![this, inputContext];
                     msg_send![input_context, handleEvent: native_event]
                 };
+                if matches!(key_down_event.keystroke.key.as_str(), "e" | "d" | "f")
+                    || key_down_event.keystroke.modifiers.function
+                {
+                    log::info!(
+                        "[gpui_macos::dispatch_key] input_context_first handled={} key={} equivalent={} composing={}",
+                        handled == YES,
+                        key_down_event.keystroke.key,
+                        key_equivalent,
+                        is_composing,
+                    );
+                }
                 window_state.as_ref().lock().keystroke_for_do_command.take();
                 if let Some(handled) = window_state.as_ref().lock().do_command_handled.take() {
+                    if matches!(key_down_event.keystroke.key.as_str(), "e" | "d" | "f")
+                        || key_down_event.keystroke.modifiers.function
+                    {
+                        log::info!(
+                            "[gpui_macos::dispatch_key] do_command_handled={} key={}",
+                            handled,
+                            key_down_event.keystroke.key,
+                        );
+                    }
                     return handled as BOOL;
                 } else if handled == YES {
                     return YES;
                 }
 
-                return run_callback(PlatformInput::KeyDown(key_down_event));
+                let handled = run_callback(PlatformInput::KeyDown(key_down_event.clone()));
+                if matches!(key_down_event.keystroke.key.as_str(), "e" | "d" | "f")
+                    || key_down_event.keystroke.modifiers.function
+                {
+                    log::info!(
+                        "[gpui_macos::dispatch_key] callback_after_input_context handled={} key={}",
+                        handled == YES,
+                        key_down_event.keystroke.key,
+                    );
+                }
+                return handled;
             }
 
             let handled = run_callback(PlatformInput::KeyDown(key_down_event.clone()));
+            if matches!(key_down_event.keystroke.key.as_str(), "e" | "d" | "f")
+                || key_down_event.keystroke.modifiers.function
+            {
+                log::info!(
+                    "[gpui_macos::dispatch_key] callback_direct handled={} key={} equivalent={}",
+                    handled == YES,
+                    key_down_event.keystroke.key,
+                    key_equivalent,
+                );
+            }
             if handled == YES {
                 return YES;
             }
@@ -3059,6 +3193,15 @@ extern "C" fn handle_key_event(this: &Object, native_event: id, key_equivalent: 
 
             unsafe {
                 let input_context: id = msg_send![this, inputContext];
+                if matches!(key_down_event.keystroke.key.as_str(), "e" | "d" | "f")
+                    || key_down_event.keystroke.modifiers.function
+                {
+                    log::info!(
+                        "[gpui_macos::dispatch_key] input_context_final key={} equivalent={}",
+                        key_down_event.keystroke.key,
+                        key_equivalent,
+                    );
+                }
                 msg_send![input_context, handleEvent: native_event]
             }
         }
@@ -3751,17 +3894,37 @@ extern "C" fn do_command_by_selector(this: &Object, _: Sel, _: Sel) {
     drop(lock);
 
     if let Some((keystroke, callback)) = keystroke.zip(event_callback.as_mut()) {
+        let should_log = matches!(keystroke.key.as_str(), "e" | "d" | "f")
+            || keystroke.modifiers.function;
+        if should_log {
+            log::info!(
+                "[gpui_macos::do_command] key={} key_char={:?} cmd={} ctrl={} alt={} shift={} fn={}",
+                keystroke.key,
+                keystroke.key_char,
+                keystroke.modifiers.platform,
+                keystroke.modifiers.control,
+                keystroke.modifiers.alt,
+                keystroke.modifiers.shift,
+                keystroke.modifiers.function,
+            );
+        }
         // AppKit calls this Objective-C method directly. If user callback code
         // panics, we must not unwind across the FFI boundary.
         let handled = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             (callback)(PlatformInput::KeyDown(KeyDownEvent {
-                keystroke,
+                keystroke: keystroke.clone(),
                 is_held: false,
                 prefer_character_input: false,
             }))
         }));
         match handled {
             Ok(handled) => {
+                if should_log {
+                    log::info!(
+                        "[gpui_macos::do_command] callback handled={}",
+                        !handled.propagate
+                    );
+                }
                 state.as_ref().lock().do_command_handled = Some(!handled.propagate);
             }
             Err(_) => {

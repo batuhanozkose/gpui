@@ -1,6 +1,6 @@
 use crate::{
     BoolExt, MacDispatcher, MacDisplay, MacKeyboardLayout, MacKeyboardMapper, MacWindow,
-    events::key_to_native, ns_string, pasteboard::Pasteboard, renderer,
+    events::key_to_native, ns_string, pasteboard::Pasteboard, renderer, NSStringExt,
 };
 use anyhow::{Context as _, anyhow};
 use block::ConcreteBlock;
@@ -8,7 +8,7 @@ use cocoa::{
     appkit::{
         NSApplication, NSApplicationActivationPolicy::NSApplicationActivationPolicyRegular,
         NSControl as _, NSEventModifierFlags, NSMenu, NSMenuItem, NSModalResponse, NSOpenPanel,
-        NSSavePanel, NSVisualEffectState, NSVisualEffectView, NSWindow,
+        NSSavePanel, NSVisualEffectState, NSVisualEffectView, NSWindow, NSEvent,
     },
     base::{BOOL, NO, YES, id, nil, selector},
     foundation::{
@@ -65,12 +65,37 @@ const MAC_PLATFORM_IVAR: &str = "platform";
 static mut APP_CLASS: *const Class = ptr::null();
 static mut APP_DELEGATE_CLASS: *const Class = ptr::null();
 
+extern "C" fn send_event(this: &mut Object, _: Sel, event: id) {
+    unsafe {
+        let event_type: u64 = msg_send![event, type];
+        if event_type == 10 || event_type == 11 {
+            let key_code: u16 = msg_send![event, keyCode];
+            let chars = event.characters().to_str().to_string();
+            let chars_ignoring = event.charactersIgnoringModifiers().to_str().to_string();
+            let modifiers = event.modifierFlags();
+
+            if matches!(chars_ignoring.as_str(), "e" | "d" | "f") || modifiers.bits() == 0x100 {
+                log::info!(
+                    "[gpui_macos::app_send_event] type={} keyCode=0x{:X} raw_flags=0x{:X} chars={chars:?} charsIgnoring={chars_ignoring:?} ns_fn={}",
+                    event_type,
+                    key_code,
+                    modifiers.bits(),
+                    modifiers.contains(NSEventModifierFlags::NSFunctionKeyMask),
+                );
+            }
+        }
+
+        let _: () = msg_send![super(this, class!(NSApplication)), sendEvent: event];
+    }
+}
+
 #[ctor]
 unsafe fn build_classes() {
     unsafe {
         APP_CLASS = {
             let mut decl = ClassDecl::new("GPUIApplication", class!(NSApplication)).unwrap();
             decl.add_ivar::<*mut c_void>(MAC_PLATFORM_IVAR);
+            decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(&mut Object, Sel, id));
             decl.register()
         }
     };

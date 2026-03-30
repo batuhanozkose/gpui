@@ -8297,6 +8297,28 @@ impl Window {
             return;
         }
 
+        let prefer_text_input = event
+            .downcast_ref::<KeyDownEvent>()
+            .filter(|key_down_event| key_down_event.prefer_character_input)
+            .map(|_| {
+                self.platform_window
+                    .take_input_handler()
+                    .map_or(false, |mut input_handler| {
+                        let accepts = input_handler.accepts_text_input(self, cx);
+                        self.platform_window.set_input_handler(input_handler);
+                        accepts
+                    })
+            })
+            .unwrap_or(false);
+
+        if prefer_text_input {
+            if self.pending_input.take().is_some() {
+                self.pending_input_changed(cx);
+            }
+            self.finish_dispatch_key_event(event, dispatch_path, self.context_stack(), cx);
+            return;
+        }
+
         let mut currently_pending = self.pending_input.take().unwrap_or_default();
         if currently_pending.focus.is_some() && currently_pending.focus != self.focus {
             currently_pending = PendingInput::default();
@@ -8366,21 +8388,7 @@ impl Window {
             return;
         }
 
-        let skip_bindings = event
-            .downcast_ref::<KeyDownEvent>()
-            .filter(|key_down_event| key_down_event.prefer_character_input)
-            .map(|_| {
-                self.platform_window
-                    .take_input_handler()
-                    .map_or(false, |mut input_handler| {
-                        let accepts = input_handler.accepts_text_input(self, cx);
-                        self.platform_window.set_input_handler(input_handler);
-                        // If modifiers are not excessive (e.g. AltGr), and the input handler is accepting text input,
-                        // we prefer the text input over bindings.
-                        accepts
-                    })
-            })
-            .unwrap_or(false);
+        let skip_bindings = prefer_text_input;
 
         if !skip_bindings {
             for binding in match_result.bindings {
