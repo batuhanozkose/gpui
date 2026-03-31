@@ -9,10 +9,13 @@ use core_foundation::{
     string::CFString,
 };
 use core_graphics::{
-    base::{CGGlyph, kCGImageAlphaPremultipliedLast},
+    base::{
+        CGGlyph, kCGBitmapByteOrder32Little, kCGImageAlphaNoneSkipLast,
+        kCGImageAlphaPremultipliedLast,
+    },
     color_space::CGColorSpace,
-    context::{CGContext, CGTextDrawingMode},
-    display::CGPoint,
+    context::{CGBlendMode, CGContext, CGTextDrawingMode},
+    geometry::{CGPoint, CGRect, CGSize},
 };
 use core_text::{
     font::CTFont,
@@ -35,9 +38,9 @@ use font_kit::{
 };
 use gpui::{
     Bounds, DevicePixels, Font, FontFallbacks, FontFeatures, FontId, FontMetrics, FontRun,
-    FontStyle, FontWeight, GlyphId, LineLayout, Pixels, PlatformTextSystem, RenderGlyphParams,
-    Result, SUBPIXEL_VARIANTS_X, ShapedGlyph, ShapedRun, SharedString, Size, TextRenderingMode,
-    point, px, size, swap_rgba_pa_to_bgra,
+    FontStyle, FontWeight, GlyphId, LineLayout, MacTextRasterizationMode, Pixels,
+    PlatformTextSystem, RenderGlyphParams, Result, SUBPIXEL_VARIANTS_X, ShapedGlyph, ShapedRun,
+    SharedString, Size, TextRenderingMode, point, px, size, swap_rgba_pa_to_bgra,
 };
 use parking_lot::{RwLock, RwLockUpgradableReadGuard};
 use pathfinder_geometry::{
@@ -385,6 +388,12 @@ impl MacTextSystemState {
         if glyph_bounds.size.width.0 == 0 || glyph_bounds.size.height.0 == 0 {
             anyhow::bail!("glyph bounds are empty");
         } else {
+            let use_polarity_aware = matches!(
+                params.mac_text_rasterization_mode,
+                MacTextRasterizationMode::PolarityAware
+                    | MacTextRasterizationMode::PolarityAwareDisableYSubpixelShift
+            );
+
             // Add an extra pixel when the subpixel variant isn't zero to make room for anti-aliasing.
             let mut bitmap_size = glyph_bounds.size;
             if params.subpixel_variant.x > 0 {
@@ -408,6 +417,17 @@ impl MacTextSystemState {
                     &CGColorSpace::create_device_rgb(),
                     kCGImageAlphaPremultipliedLast,
                 );
+            } else if use_polarity_aware {
+                bytes = vec![0; bitmap_size.width.0 as usize * 4 * bitmap_size.height.0 as usize];
+                cx = CGContext::create_bitmap_context(
+                    Some(bytes.as_mut_ptr() as *mut _),
+                    bitmap_size.width.0 as usize,
+                    bitmap_size.height.0 as usize,
+                    8,
+                    bitmap_size.width.0 as usize * 4,
+                    &CGColorSpace::create_device_rgb(),
+                    kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipLast,
+                );
             } else {
                 bytes = vec![0; bitmap_size.width.0 as usize * bitmap_size.height.0 as usize];
                 cx = CGContext::create_bitmap_context(
@@ -419,6 +439,29 @@ impl MacTextSystemState {
                     &CGColorSpace::create_device_gray(),
                     kCGImageAlphaOnly,
                 );
+            }
+
+            if use_polarity_aware && !params.is_emoji {
+                let (background, foreground) = if params.is_light {
+                    ([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+                } else {
+                    ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0])
+                };
+
+                cx.set_blend_mode(CGBlendMode::Copy);
+                cx.set_rgb_fill_color(background[0], background[1], background[2], 1.0);
+                cx.fill_rect(CGRect::new(
+                    &CGPoint::new(0.0, 0.0),
+                    &CGSize::new(
+                        bitmap_size.width.0 as CGFloat,
+                        bitmap_size.height.0 as CGFloat,
+                    ),
+                ));
+                cx.set_blend_mode(CGBlendMode::Normal);
+                cx.set_should_smooth_fonts(true);
+                cx.set_should_antialias(true);
+                cx.set_text_drawing_mode(CGTextDrawingMode::CGTextFill);
+                cx.set_rgb_fill_color(foreground[0], foreground[1], foreground[2], 1.0);
             }
 
             // Move the origin to bottom left and account for scaling, this
@@ -435,10 +478,12 @@ impl MacTextSystemState {
             let subpixel_shift = params
                 .subpixel_variant
                 .map(|v| v as f32 / SUBPIXEL_VARIANTS_X as f32);
-            cx.set_text_drawing_mode(CGTextDrawingMode::CGTextFill);
-            cx.set_gray_fill_color(0.0, 1.0);
-            cx.set_allows_antialiasing(true);
-            cx.set_should_antialias(true);
+            if !use_polarity_aware && !params.is_emoji {
+                cx.set_text_drawing_mode(CGTextDrawingMode::CGTextFill);
+                cx.set_gray_fill_color(0.0, 1.0);
+                cx.set_allows_antialiasing(true);
+                cx.set_should_antialias(true);
+            }
             cx.set_allows_font_subpixel_positioning(true);
             cx.set_should_subpixel_position_fonts(true);
             cx.set_allows_font_subpixel_quantization(false);
@@ -460,6 +505,19 @@ impl MacTextSystemState {
                 for pixel in bytes.chunks_exact_mut(4) {
                     swap_rgba_pa_to_bgra(pixel);
                 }
+            } else if use_polarity_aware {
+                let mut index = 0usize;
+                bytes.retain_mut(|value| {
+                    index += 1;
+                    if index % 4 == 0 {
+                        if !params.is_light {
+                            *value = 255 - *value;
+                        }
+                        true
+                    } else {
+                        false
+                    }
+                });
             }
 
             Ok((bitmap_size, bytes))

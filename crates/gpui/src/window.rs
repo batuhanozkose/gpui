@@ -7,15 +7,15 @@ use crate::{
     DispatchActionListener, DispatchNodeId, DispatchTree, DisplayId, Edges, Effect, Entity,
     EntityId, EventEmitter, FileDropEvent, FontId, Global, GlobalElementId, GlyphId, GpuSpecs,
     Hsla, InputHandler, IsZero, KeyBinding, KeyContext, KeyDownEvent, KeyEvent, Keystroke,
-    KeystrokeEvent, LayoutId, LineLayoutIndex, Modifiers, ModifiersChangedEvent, MonochromeSprite,
-    MouseButton, MouseEvent, MouseMoveEvent, MouseUpEvent, Path, Pixels, PlatformAtlas,
-    PlatformDisplay, PlatformInput, PlatformInputHandler, PlatformNativeAlert,
-    PlatformNativeAlertStyle, PlatformNativeColor, PlatformNativePanel, PlatformNativePanelAnchor,
-    PlatformNativePanelLevel, PlatformNativePanelMaterial, PlatformNativePanelStyle,
-    PlatformNativePopover, PlatformNativePopoverAnchor, PlatformNativePopoverBehavior,
-    PlatformNativePopoverContentItem, PlatformNativeSearchFieldTarget,
-    PlatformNativeSearchSuggestionMenu, PlatformNativeToolbar, PlatformNativeToolbarBadge,
-    PlatformNativeToolbarButtonItem, PlatformNativeToolbarComboBoxItem,
+    KeystrokeEvent, LayoutId, LineLayoutIndex, MacTextRasterizationMode, Modifiers,
+    ModifiersChangedEvent, MonochromeSprite, MouseButton, MouseEvent, MouseMoveEvent, MouseUpEvent,
+    Path, Pixels, PlatformAtlas, PlatformDisplay, PlatformInput, PlatformInputHandler,
+    PlatformNativeAlert, PlatformNativeAlertStyle, PlatformNativeColor, PlatformNativePanel,
+    PlatformNativePanelAnchor, PlatformNativePanelLevel, PlatformNativePanelMaterial,
+    PlatformNativePanelStyle, PlatformNativePopover, PlatformNativePopoverAnchor,
+    PlatformNativePopoverBehavior, PlatformNativePopoverContentItem,
+    PlatformNativeSearchFieldTarget, PlatformNativeSearchSuggestionMenu, PlatformNativeToolbar,
+    PlatformNativeToolbarBadge, PlatformNativeToolbarButtonItem, PlatformNativeToolbarComboBoxItem,
     PlatformNativeToolbarControlGroupItem, PlatformNativeToolbarDisplayMode,
     PlatformNativeToolbarGroupControlRepresentation, PlatformNativeToolbarGroupSelectionMode,
     PlatformNativeToolbarItem, PlatformNativeToolbarItemStyle, PlatformNativeToolbarLabelItem,
@@ -3848,6 +3848,7 @@ pub struct Window {
     sprite_atlas: Arc<dyn PlatformAtlas>,
     text_system: Arc<WindowTextSystem>,
     text_rendering_mode: Rc<Cell<TextRenderingMode>>,
+    mac_text_rasterization_mode: Rc<Cell<MacTextRasterizationMode>>,
     rem_size: Pixels,
     /// The stack of override values for the window's rem size.
     ///
@@ -4519,6 +4520,7 @@ impl Window {
             sprite_atlas,
             text_system,
             text_rendering_mode: cx.text_rendering_mode.clone(),
+            mac_text_rasterization_mode: cx.mac_text_rasterization_mode.clone(),
             rem_size: px(16.),
             rem_size_override_stack: SmallVec::new(),
             viewport_size: content_size,
@@ -7051,6 +7053,7 @@ impl Window {
         );
     }
 
+    /// Queues a deferred draw on either the local surface or an overlay surface.
     pub fn defer_draw_with_target(
         &mut self,
         element: AnyElement,
@@ -7264,9 +7267,18 @@ impl Window {
         let scale_factor = self.scale_factor();
         let glyph_origin = origin.scale(scale_factor);
 
+        let mac_text_rasterization_mode = self.mac_text_rasterization_mode.get();
         let subpixel_variant = Point {
             x: (glyph_origin.x.0.fract() * SUBPIXEL_VARIANTS_X as f32).floor() as u8,
-            y: (glyph_origin.y.0.fract() * SUBPIXEL_VARIANTS_Y as f32).floor() as u8,
+            y: if matches!(
+                mac_text_rasterization_mode,
+                MacTextRasterizationMode::DisableYSubpixelShift
+                    | MacTextRasterizationMode::PolarityAwareDisableYSubpixelShift
+            ) {
+                0
+            } else {
+                (glyph_origin.y.0.fract() * SUBPIXEL_VARIANTS_Y as f32).floor() as u8
+            },
         };
         let subpixel_rendering = self.should_use_subpixel_rendering(font_id, font_size);
         let params = RenderGlyphParams {
@@ -7277,6 +7289,8 @@ impl Window {
             scale_factor,
             is_emoji: false,
             subpixel_rendering,
+            is_light: color.is_light(),
+            mac_text_rasterization_mode,
         };
 
         let raster_bounds = self.text_system().raster_bounds(&params)?;
@@ -7366,6 +7380,8 @@ impl Window {
             scale_factor,
             is_emoji: true,
             subpixel_rendering: false,
+            is_light: false,
+            mac_text_rasterization_mode: self.mac_text_rasterization_mode.get(),
         };
 
         let raster_bounds = self.text_system().raster_bounds(&params)?;

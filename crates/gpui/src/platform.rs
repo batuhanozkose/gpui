@@ -2267,6 +2267,20 @@ pub enum TextRenderingMode {
     Grayscale,
 }
 
+/// Experimental macOS glyph rasterization modes for debugging low-DPI text rendering.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub enum MacTextRasterizationMode {
+    /// Use the current production rasterization path.
+    #[default]
+    Legacy,
+    /// Rasterize glyphs against a polarity-matched background before extracting alpha.
+    PolarityAware,
+    /// Preserve the legacy rasterization path, but disable y-axis subpixel shifting.
+    DisableYSubpixelShift,
+    /// Combine polarity-aware rasterization with disabled y-axis subpixel shifting.
+    PolarityAwareDisableYSubpixelShift,
+}
+
 /// The options that can be configured for a file dialog prompt
 #[derive(Clone, Debug)]
 pub struct PathPromptOptions {

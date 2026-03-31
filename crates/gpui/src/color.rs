@@ -478,6 +478,13 @@ impl Hsla {
         self.a == 1.0
     }
 
+    /// Returns true when the color is bright enough that macOS will likely use its light-text smoothing path.
+    pub fn is_light(&self) -> bool {
+        const ONE_THIRD: f32 = 1.0 / 3.0;
+        let Rgba { r, g, b, .. } = self.to_rgb();
+        r >= ONE_THIRD && g >= ONE_THIRD && b >= ONE_THIRD && r + g + b >= 2.0
+    }
+
     /// Blends `other` on top of `self` based on `other`'s alpha value. The resulting color is a combination of `self`'s and `other`'s colors.
     ///
     /// If `other`'s alpha value is 1.0 or greater, `other` color is fully opaque, thus `other` is returned as the output color.

@@ -13,8 +13,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Bounds, DevicePixels, Hsla, Pixels, PlatformTextSystem, Point, Result, SharedString, Size,
-    StrikethroughStyle, TextRenderingMode, UnderlineStyle, px,
+    Bounds, DevicePixels, Hsla, MacTextRasterizationMode, Pixels, PlatformTextSystem, Point,
+    Result, SharedString, Size, StrikethroughStyle, TextRenderingMode, UnderlineStyle, px,
 };
 use anyhow::{Context as _, anyhow};
 use collections::FxHashMap;
@@ -810,6 +810,8 @@ pub struct RenderGlyphParams {
     pub scale_factor: f32,
     pub is_emoji: bool,
     pub subpixel_rendering: bool,
+    pub is_light: bool,
+    pub mac_text_rasterization_mode: MacTextRasterizationMode,
 }
 
 impl Eq for RenderGlyphParams {}
@@ -823,6 +825,8 @@ impl Hash for RenderGlyphParams {
         self.scale_factor.to_bits().hash(state);
         self.is_emoji.hash(state);
         self.subpixel_rendering.hash(state);
+        self.is_light.hash(state);
+        self.mac_text_rasterization_mode.hash(state);
     }
 }
 
