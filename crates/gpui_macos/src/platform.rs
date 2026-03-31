@@ -1,6 +1,6 @@
 use crate::{
     BoolExt, MacDispatcher, MacDisplay, MacKeyboardLayout, MacKeyboardMapper, MacWindow,
-    events::key_to_native, ns_string, pasteboard::Pasteboard, renderer, NSStringExt,
+    events::key_to_native, ns_string, pasteboard::Pasteboard, renderer,
 };
 use anyhow::{Context as _, anyhow};
 use block::ConcreteBlock;
@@ -8,7 +8,7 @@ use cocoa::{
     appkit::{
         NSApplication, NSApplicationActivationPolicy::NSApplicationActivationPolicyRegular,
         NSControl as _, NSEventModifierFlags, NSMenu, NSMenuItem, NSModalResponse, NSOpenPanel,
-        NSSavePanel, NSVisualEffectState, NSVisualEffectView, NSWindow, NSEvent,
+        NSSavePanel, NSVisualEffectState, NSVisualEffectView, NSWindow,
     },
     base::{BOOL, NO, YES, id, nil, selector},
     foundation::{
@@ -77,7 +77,10 @@ unsafe fn build_classes() {
         APP_CLASS = {
             let mut decl = ClassDecl::new("GPUIApplication", class!(NSApplication)).unwrap();
             decl.add_ivar::<*mut c_void>(MAC_PLATFORM_IVAR);
-            decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(&mut Object, Sel, id));
+            decl.add_method(
+                sel!(sendEvent:),
+                send_event as extern "C" fn(&mut Object, Sel, id),
+            );
             decl.register()
         }
     };

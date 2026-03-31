@@ -1,17 +1,17 @@
 use gpui::{
-    point, px, Capslock, KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, ModifiersChangedEvent,
-    MouseButton, MouseDownEvent, MouseExitEvent, MouseMoveEvent, MousePressureEvent, MouseUpEvent,
+    Capslock, KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, ModifiersChangedEvent, MouseButton,
+    MouseDownEvent, MouseExitEvent, MouseMoveEvent, MousePressureEvent, MouseUpEvent,
     NavigationDirection, PinchEvent, Pixels, PlatformInput, PressureStage, ScrollDelta,
-    ScrollWheelEvent, TouchPhase,
+    ScrollWheelEvent, TouchPhase, point, px,
 };
 
 use crate::{
-    kTISPropertyUnicodeKeyLayoutData, LMGetKbdType, NSStringExt,
-    TISCopyCurrentKeyboardLayoutInputSource, TISGetInputSourceProperty, UCKeyTranslate,
+    LMGetKbdType, NSStringExt, TISCopyCurrentKeyboardLayoutInputSource, TISGetInputSourceProperty,
+    UCKeyTranslate, kTISPropertyUnicodeKeyLayoutData,
 };
 use cocoa::{
     appkit::{NSEvent, NSEventModifierFlags, NSEventPhase, NSEventType},
-    base::{id, YES},
+    base::{YES, id},
     foundation::{NSPoint, NSRect},
 };
 use core_foundation::data::{CFDataGetBytePtr, CFDataRef};
@@ -163,11 +163,9 @@ pub(crate) unsafe fn platform_input_from_native(
                     prefer_character_input,
                 }))
             }
-            NSEventType::NSKeyUp => {
-                Some(PlatformInput::KeyUp(KeyUpEvent {
-                    keystroke: parse_keystroke(native_event),
-                }))
-            }
+            NSEventType::NSKeyUp => Some(PlatformInput::KeyUp(KeyUpEvent {
+                keystroke: parse_keystroke(native_event),
+            })),
             NSEventType::NSLeftMouseDown
             | NSEventType::NSRightMouseDown
             | NSEventType::NSOtherMouseDown => {

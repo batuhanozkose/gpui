@@ -1,7 +1,6 @@
 use super::*;
 use heapless::Vec as ArrayVec;
 use std::{cmp::Ordering, mem, sync::Arc};
-use tracing::instrument;
 
 #[derive(Clone)]
 struct StackEntry<'a, T: Item, D> {

@@ -5,6 +5,7 @@ use crate::{
 };
 use anyhow::Result;
 use futures::FutureExt;
+use gpui_util::Deferred;
 use std::{
     any::{Any, TypeId},
     borrow::{Borrow, BorrowMut},
@@ -12,7 +13,6 @@ use std::{
     ops,
     sync::Arc,
 };
-use gpui_util::Deferred;
 
 use super::{App, AsyncWindowContext, Entity, KeystrokeEvent};
 
