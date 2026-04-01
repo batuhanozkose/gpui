@@ -1035,6 +1035,8 @@ pub struct HostedContentConfig {
 pub enum HostedSurfaceTarget {
     /// Attach the surface to the leading sidebar pane.
     Sidebar,
+    /// Attach the surface to the hosted sidebar header region.
+    SidebarHeader,
     /// Attach the surface to the trailing inspector pane.
     Inspector,
 }

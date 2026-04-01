@@ -338,6 +338,7 @@ pub struct SidebarViewConfig<'a> {
     pub sidebar_width: f64,
     pub min_width: f64,
     pub max_width: f64,
+    pub header_height: f64,
     pub collapsed: bool,
     pub has_inspector: bool,
     pub inspector_width: f64,

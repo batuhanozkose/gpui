@@ -2651,6 +2651,12 @@ impl PlatformWindow for MacWindow {
                         surface_view as id,
                     );
                 }
+                gpui::HostedSurfaceTarget::SidebarHeader => {
+                    crate::native_controls::embed_sidebar_header_surface_view(
+                        host_view as id,
+                        surface_view as id,
+                    );
+                }
                 gpui::HostedSurfaceTarget::Inspector => {
                     crate::native_controls::embed_inspector_surface_view(
                         host_view as id,

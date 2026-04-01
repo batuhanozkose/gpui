@@ -2,7 +2,7 @@ use std::{ffi::c_void, mem};
 
 use cocoa::{base::id, foundation::NSRect};
 use gpui::native_controls::*;
-use gpui::{Bounds, Pixels, point, px, size};
+use gpui::{point, px, size, Bounds, Pixels};
 use objc::{sel, sel_impl};
 
 use crate::native_controls;
@@ -1386,6 +1386,7 @@ impl PlatformNativeControls for MacNativeControls {
                     config.min_width,
                     config.max_width,
                 );
+                native_controls::set_sidebar_header_height(view, config.header_height);
                 native_controls::set_sidebar_collapsed(
                     view,
                     config.collapsed,
@@ -1435,6 +1436,7 @@ impl PlatformNativeControls for MacNativeControls {
                     config.sidebar_width,
                     config.min_width,
                     config.max_width,
+                    config.header_height,
                     config.embed_in_host,
                     config.has_inspector,
                     config.inspector_width,

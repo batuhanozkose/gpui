@@ -39,6 +39,9 @@ struct SidebarHostData {
     detail_label: id,
     detail_content_view: id,
     sidebar_container: id,
+    sidebar_header_container: id,
+    sidebar_body_container: id,
+    sidebar_header_height_constraint: id,
     inspector_container: id,
     window: id,
     embedded_content_view: id,
@@ -164,7 +167,11 @@ unsafe fn host_data_ptr(host_view: id) -> *mut SidebarHostData {
 unsafe fn host_data_mut(host_view: id) -> Option<&'static mut SidebarHostData> {
     unsafe {
         let ptr = host_data_ptr(host_view);
-        if ptr.is_null() { None } else { Some(&mut *ptr) }
+        if ptr.is_null() {
+            None
+        } else {
+            Some(&mut *ptr)
+        }
     }
 }
 
@@ -520,6 +527,7 @@ pub(crate) unsafe fn create_sidebar(
     sidebar_width: f64,
     min_width: f64,
     max_width: f64,
+    header_height: f64,
     embed_in_sidebar: bool,
     has_inspector: bool,
     inspector_width: f64,
@@ -625,6 +633,84 @@ pub(crate) unsafe fn create_sidebar(
             (vfx, vfx)
         };
         let _ = sidebar_visual_effect; // retained by sidebar_container as subview
+
+        let (sidebar_header_container, sidebar_body_container, sidebar_header_height_constraint) =
+            if embed_in_sidebar {
+                let header_container: id = msg_send![class!(NSView), alloc];
+                let header_container: id = msg_send![header_container, initWithFrame: NSRect::new(
+                    NSPoint::new(0.0, 0.0),
+                    NSSize::new(initial_width, header_height.max(0.0)),
+                )];
+                let body_container: id = msg_send![class!(NSView), alloc];
+                let body_container: id = msg_send![body_container, initWithFrame: NSRect::new(
+                    NSPoint::new(0.0, header_height.max(0.0)),
+                    NSSize::new(initial_width, 420.0),
+                )];
+
+                let _: () = msg_send![
+                    header_container,
+                    setTranslatesAutoresizingMaskIntoConstraints: 0i8
+                ];
+                let _: () = msg_send![
+                    body_container,
+                    setTranslatesAutoresizingMaskIntoConstraints: 0i8
+                ];
+                let _: () = msg_send![sidebar_container, addSubview: header_container];
+                let _: () = msg_send![sidebar_container, addSubview: body_container];
+
+                let has_safe_area: bool =
+                    msg_send![sidebar_container, respondsToSelector: sel!(safeAreaLayoutGuide)];
+                let guide_top: id = if has_safe_area {
+                    let guide: id = msg_send![sidebar_container, safeAreaLayoutGuide];
+                    msg_send![guide, topAnchor]
+                } else {
+                    msg_send![sidebar_container, topAnchor]
+                };
+
+                let container_leading: id = msg_send![sidebar_container, leadingAnchor];
+                let container_trailing: id = msg_send![sidebar_container, trailingAnchor];
+                let container_bottom: id = msg_send![sidebar_container, bottomAnchor];
+
+                let header_top: id = msg_send![header_container, topAnchor];
+                let header_leading: id = msg_send![header_container, leadingAnchor];
+                let header_trailing: id = msg_send![header_container, trailingAnchor];
+                let header_height_anchor: id = msg_send![header_container, heightAnchor];
+                let header_bottom: id = msg_send![header_container, bottomAnchor];
+
+                let body_top: id = msg_send![body_container, topAnchor];
+                let body_leading: id = msg_send![body_container, leadingAnchor];
+                let body_trailing: id = msg_send![body_container, trailingAnchor];
+                let body_bottom: id = msg_send![body_container, bottomAnchor];
+
+                let c1: id = msg_send![header_top, constraintEqualToAnchor: guide_top];
+                let c2: id = msg_send![header_leading, constraintEqualToAnchor: container_leading];
+                let c3: id =
+                    msg_send![header_trailing, constraintEqualToAnchor: container_trailing];
+                let c4: id = msg_send![header_height_anchor, constraintEqualToConstant: header_height.max(0.0)];
+                let c5: id = msg_send![body_top, constraintEqualToAnchor: header_bottom];
+                let c6: id = msg_send![body_leading, constraintEqualToAnchor: container_leading];
+                let c7: id = msg_send![body_trailing, constraintEqualToAnchor: container_trailing];
+                let c8: id = msg_send![body_bottom, constraintEqualToAnchor: container_bottom];
+
+                let _: () = msg_send![c1, setActive: 1i8];
+                let _: () = msg_send![c2, setActive: 1i8];
+                let _: () = msg_send![c3, setActive: 1i8];
+                let _: () = msg_send![c4, setActive: 1i8];
+                let _: () = msg_send![c5, setActive: 1i8];
+                let _: () = msg_send![c6, setActive: 1i8];
+                let _: () = msg_send![c7, setActive: 1i8];
+                let _: () = msg_send![c8, setActive: 1i8];
+
+                let _: () = msg_send![c4, retain];
+                let _: () = msg_send![header_container, setHidden: (header_height <= 0.0) as i8];
+
+                let _: () = msg_send![header_container, release];
+                let _: () = msg_send![body_container, release];
+
+                (header_container, body_container, c4)
+            } else {
+                (nil, nil, nil)
+            };
 
         // Only create the source-list table when NOT embedding custom content in the sidebar.
         let (scroll, table) = if !embed_in_sidebar {
@@ -908,6 +994,9 @@ pub(crate) unsafe fn create_sidebar(
             detail_label,
             detail_content_view: content_view,
             sidebar_container,
+            sidebar_header_container,
+            sidebar_body_container,
+            sidebar_header_height_constraint,
             inspector_container,
             window: nil,
             embedded_content_view: nil,
@@ -1730,6 +1819,31 @@ pub(crate) unsafe fn set_sidebar_header(
     }
 }
 
+pub(crate) unsafe fn set_sidebar_header_height(host_view: id, height: f64) {
+    unsafe {
+        let Some(host_data) = host_data_mut(host_view) else {
+            return;
+        };
+
+        if host_data.sidebar_header_container == nil
+            || host_data.sidebar_header_height_constraint == nil
+        {
+            return;
+        }
+
+        let normalized_height = height.max(0.0);
+        let _: () = msg_send![
+            host_data.sidebar_header_height_constraint,
+            setConstant: normalized_height
+        ];
+        let _: () = msg_send![
+            host_data.sidebar_header_container,
+            setHidden: (normalized_height <= 0.0) as i8
+        ];
+        let _: () = msg_send![host_data.sidebar_container, layoutSubtreeIfNeeded];
+    }
+}
+
 /// Embed a secondary view (e.g. GPUISurfaceView) into the sidebar (left) pane
 /// using Auto Layout constraints pinned below the titlebar safe area.
 /// The sidebar must have been created with embed_in_sidebar=true to have
@@ -1744,7 +1858,11 @@ pub(crate) unsafe fn embed_sidebar_surface_view(host_view: id, surface_view: id)
             return;
         };
 
-        let target_pane = host_data.sidebar_container;
+        let target_pane = if host_data.sidebar_body_container != nil {
+            host_data.sidebar_body_container
+        } else {
+            host_data.sidebar_container
+        };
         if target_pane == nil {
             return;
         }
@@ -1797,11 +1915,87 @@ pub(crate) unsafe fn embed_sidebar_surface_view(host_view: id, surface_view: id)
 
         let _: () = msg_send![target_pane, layoutSubtreeIfNeeded];
 
-        // Make the Metal layer non-opaque so the NSVisualEffectView vibrancy
-        // shows through transparent areas of the GPUI content.
+        // Match the hosted GPUI surface to the sidebar container mode.
+        // Opaque themes install a solid container background and hide any
+        // NSVisualEffectView; blurred themes leave vibrancy enabled.
         let layer: id = msg_send![surface_view, layer];
         if layer != nil {
-            let _: () = msg_send![layer, setOpaque: 0i8];
+            let container_layer: id = msg_send![target_pane, layer];
+            let container_background_color: id = if container_layer != nil {
+                msg_send![container_layer, backgroundColor]
+            } else {
+                nil
+            };
+            let is_opaque_sidebar = container_background_color != nil;
+            let _: () = msg_send![layer, setOpaque: is_opaque_sidebar as i8];
+            let _: () = msg_send![layer, setBackgroundColor: container_background_color];
+        }
+    }
+}
+
+pub(crate) unsafe fn embed_sidebar_header_surface_view(host_view: id, surface_view: id) {
+    unsafe {
+        if host_view == nil || surface_view == nil {
+            return;
+        }
+
+        let Some(host_data) = host_data_mut(host_view) else {
+            return;
+        };
+
+        let target_pane = host_data.sidebar_header_container;
+        if target_pane == nil {
+            return;
+        }
+
+        let current_superview: id = msg_send![surface_view, superview];
+        if current_superview == target_pane {
+            return;
+        }
+
+        if current_superview != nil {
+            let _: () = msg_send![surface_view, removeFromSuperview];
+        }
+
+        let _: () = msg_send![
+            surface_view,
+            setTranslatesAutoresizingMaskIntoConstraints: 0i8
+        ];
+        let _: () = msg_send![target_pane, addSubview: surface_view];
+
+        let pane_top: id = msg_send![target_pane, topAnchor];
+        let pane_leading: id = msg_send![target_pane, leadingAnchor];
+        let pane_trailing: id = msg_send![target_pane, trailingAnchor];
+        let pane_bottom: id = msg_send![target_pane, bottomAnchor];
+
+        let view_top: id = msg_send![surface_view, topAnchor];
+        let view_leading: id = msg_send![surface_view, leadingAnchor];
+        let view_trailing: id = msg_send![surface_view, trailingAnchor];
+        let view_bottom: id = msg_send![surface_view, bottomAnchor];
+
+        let c1: id = msg_send![view_top, constraintEqualToAnchor: pane_top];
+        let c2: id = msg_send![view_leading, constraintEqualToAnchor: pane_leading];
+        let c3: id = msg_send![view_trailing, constraintEqualToAnchor: pane_trailing];
+        let c4: id = msg_send![view_bottom, constraintEqualToAnchor: pane_bottom];
+
+        let _: () = msg_send![c1, setActive: 1i8];
+        let _: () = msg_send![c2, setActive: 1i8];
+        let _: () = msg_send![c3, setActive: 1i8];
+        let _: () = msg_send![c4, setActive: 1i8];
+
+        let _: () = msg_send![target_pane, layoutSubtreeIfNeeded];
+
+        let layer: id = msg_send![surface_view, layer];
+        if layer != nil {
+            let container_layer: id = msg_send![host_data.sidebar_container, layer];
+            let container_background_color: id = if container_layer != nil {
+                msg_send![container_layer, backgroundColor]
+            } else {
+                nil
+            };
+            let is_opaque_sidebar = container_background_color != nil;
+            let _: () = msg_send![layer, setOpaque: is_opaque_sidebar as i8];
+            let _: () = msg_send![layer, setBackgroundColor: container_background_color];
         }
     }
 }
@@ -1890,14 +2084,15 @@ pub(crate) unsafe fn set_sidebar_background_color(host_view: id, r: f64, g: f64,
             return;
         }
 
+        let ns_color: id = msg_send![
+            class!(NSColor),
+            colorWithRed: r green: g blue: b alpha: a
+        ];
+        let cg_color: id = msg_send![ns_color, CGColor];
+
         let _: () = msg_send![container, setWantsLayer: 1i8];
         let layer: id = msg_send![container, layer];
         if layer != nil {
-            let ns_color: id = msg_send![
-                class!(NSColor),
-                colorWithRed: r green: g blue: b alpha: a
-            ];
-            let cg_color: id = msg_send![ns_color, CGColor];
             let _: () = msg_send![layer, setBackgroundColor: cg_color];
         }
 
@@ -1909,6 +2104,13 @@ pub(crate) unsafe fn set_sidebar_background_color(host_view: id, r: f64, g: f64,
             let is_vfx: bool = msg_send![subview, isKindOfClass: class!(NSVisualEffectView)];
             if is_vfx {
                 let _: () = msg_send![subview, setHidden: 1i8];
+                continue;
+            }
+
+            let subview_layer: id = msg_send![subview, layer];
+            if subview_layer != nil {
+                let _: () = msg_send![subview_layer, setOpaque: 1i8];
+                let _: () = msg_send![subview_layer, setBackgroundColor: cg_color];
             }
         }
     }
@@ -1940,6 +2142,13 @@ pub(crate) unsafe fn clear_sidebar_background_color(host_view: id) {
             let is_vfx: bool = msg_send![subview, isKindOfClass: class!(NSVisualEffectView)];
             if is_vfx {
                 let _: () = msg_send![subview, setHidden: 0i8];
+                continue;
+            }
+
+            let subview_layer: id = msg_send![subview, layer];
+            if subview_layer != nil {
+                let _: () = msg_send![subview_layer, setOpaque: 0i8];
+                let _: () = msg_send![subview_layer, setBackgroundColor: nil];
             }
         }
     }
@@ -2100,6 +2309,10 @@ pub(crate) unsafe fn release_sidebar_view(host_view: id) {
             if host_data.scroll_view_top_constraint != nil {
                 let _: () = msg_send![host_data.scroll_view_top_constraint, setActive: 0i8];
                 let _: () = msg_send![host_data.scroll_view_top_constraint, release];
+            }
+            if host_data.sidebar_header_height_constraint != nil {
+                let _: () = msg_send![host_data.sidebar_header_height_constraint, setActive: 0i8];
+                let _: () = msg_send![host_data.sidebar_header_height_constraint, release];
             }
 
             if host_data.sidebar_toolbar != nil {

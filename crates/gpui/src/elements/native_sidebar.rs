@@ -68,6 +68,8 @@ pub fn native_sidebar(id: impl Into<ElementId>, items: &[impl AsRef<str>]) -> Na
         max_sidebar_width: 420.0,
         collapsed: false,
         embed_in_sidebar: false,
+        header_view: None,
+        header_height: 0.0,
         sidebar_view: None,
         inspector_view: None,
         inspector_width: 320.0,
@@ -96,6 +98,10 @@ pub struct NativeSidebar {
     max_sidebar_width: f64,
     collapsed: bool,
     embed_in_sidebar: bool,
+    /// When set, a secondary GpuiSurface renders this view in a dedicated
+    /// header region above the sidebar body.
+    header_view: Option<AnyView>,
+    header_height: f64,
     /// When set, a secondary GpuiSurface renders this view in the sidebar pane
     /// while the main GPUI content view stays in the detail pane.
     sidebar_view: Option<AnyView>,
@@ -176,6 +182,14 @@ impl NativeSidebar {
     /// The items / on_select source-list will be skipped in this mode.
     pub fn embed_content_in_sidebar(mut self, embed: bool) -> Self {
         self.embed_in_sidebar = embed;
+        self
+    }
+
+    /// Sets a view to render in a dedicated header region above the sidebar
+    /// body via a secondary GpuiSurface.
+    pub fn header_view<V: Render>(mut self, view: crate::Entity<V>, height: f64) -> Self {
+        self.header_view = Some(AnyView::from(view));
+        self.header_height = height.max(0.0);
         self
     }
 
@@ -290,6 +304,8 @@ impl NativeSidebar {
 struct SidebarExtraState {
     native: NativeControlState,
     #[cfg(target_os = "macos")]
+    header_surface_id: Option<SurfaceId>,
+    #[cfg(target_os = "macos")]
     sidebar_surface_id: Option<SurfaceId>,
     #[cfg(target_os = "macos")]
     inspector_surface_id: Option<SurfaceId>,
@@ -302,6 +318,7 @@ struct SidebarExtraState {
     prev_sidebar_width: f64,
     prev_min_width: f64,
     prev_max_width: f64,
+    prev_header_height: f64,
     prev_collapsed: bool,
     prev_embed_in_host: bool,
     prev_has_inspector: bool,
@@ -319,6 +336,8 @@ impl Default for SidebarExtraState {
         Self {
             native: NativeControlState::default(),
             #[cfg(target_os = "macos")]
+            header_surface_id: None,
+            #[cfg(target_os = "macos")]
             sidebar_surface_id: None,
             #[cfg(target_os = "macos")]
             inspector_surface_id: None,
@@ -328,6 +347,7 @@ impl Default for SidebarExtraState {
             prev_sidebar_width: 0.0,
             prev_min_width: 0.0,
             prev_max_width: 0.0,
+            prev_header_height: 0.0,
             prev_collapsed: false,
             prev_embed_in_host: false,
             prev_has_inspector: false,
@@ -422,6 +442,8 @@ impl Element for NativeSidebar {
         }
 
         let on_select = self.on_select.take();
+        let header_view = self.header_view.take();
+        let has_header_view = header_view.is_some();
         let sidebar_view = self.sidebar_view.take();
         let has_sidebar_view = sidebar_view.is_some();
         let inspector_view = self.inspector_view.take();
@@ -436,6 +458,11 @@ impl Element for NativeSidebar {
         let sidebar_width = self.sidebar_width.max(120.0);
         let min_sidebar_width = self.min_sidebar_width.max(120.0);
         let max_sidebar_width = self.max_sidebar_width.max(min_sidebar_width);
+        let header_height = if has_header_view {
+            self.header_height.max(0.0)
+        } else {
+            0.0
+        };
         let collapsed = self.collapsed;
         let inspector_width = self.inspector_width.max(160.0);
         let min_inspector_width = self.min_inspector_width.max(160.0);
@@ -501,6 +528,7 @@ impl Element for NativeSidebar {
                 || state.prev_sidebar_width != sidebar_width
                 || state.prev_min_width != min_sidebar_width
                 || state.prev_max_width != max_sidebar_width
+                || state.prev_header_height != header_height
                 || state.prev_collapsed != collapsed
                 || state.prev_embed_in_host != effective_embed
                 || state.prev_has_inspector != has_inspector
@@ -531,6 +559,7 @@ impl Element for NativeSidebar {
                         sidebar_width,
                         min_width: min_sidebar_width,
                         max_width: max_sidebar_width,
+                        header_height,
                         collapsed,
                         has_inspector,
                         inspector_width,
@@ -555,6 +584,7 @@ impl Element for NativeSidebar {
                 state.prev_sidebar_width = sidebar_width;
                 state.prev_min_width = min_sidebar_width;
                 state.prev_max_width = max_sidebar_width;
+                state.prev_header_height = header_height;
                 state.prev_collapsed = collapsed;
                 state.prev_embed_in_host = effective_embed;
                 state.prev_has_inspector = has_inspector;
@@ -578,6 +608,21 @@ impl Element for NativeSidebar {
                     manage_toolbar,
                 },
             );
+
+            #[cfg(target_os = "macos")]
+            if let Some(view) = header_view {
+                if let Some(surface_id) = state.header_surface_id {
+                    window.update_surface_root_view(surface_id, view);
+                } else {
+                    let handle = window.register_surface(view);
+                    window.attach_hosted_surface(
+                        state.native.view(),
+                        handle.native_view_ptr,
+                        crate::HostedSurfaceTarget::SidebarHeader,
+                    );
+                    state.header_surface_id = Some(handle.id);
+                }
+            }
 
             // Register or update the sidebar surface for dual-surface mode
             #[cfg(target_os = "macos")]
@@ -612,6 +657,7 @@ impl Element for NativeSidebar {
 
             #[cfg(not(target_os = "macos"))]
             {
+                let _ = header_view;
                 let _ = sidebar_view;
                 let _ = inspector_view;
             }
