@@ -242,6 +242,10 @@ name = "grid_layout"
 path = "examples/grid_layout.rs"
 
 [[example]]
+name = "list_example"
+path = "examples/list_example.rs"
+
+[[example]]
 name = "mouse_pressure"
 path = "examples/mouse_pressure.rs"
 
