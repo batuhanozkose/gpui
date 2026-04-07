@@ -91,7 +91,7 @@ derive_refineable = { path = "crates/refineable/derive_refineable" }
 anyhow = "1.0.86"
 ashpd = { version = "0.12.1", default-features = false, features = ["async-std"] }
 async-channel = "2.5.0"
-async-compression = { version = "0.4", features = ["gzip", "futures-io"] }
+async-compression = { version = "0.4", features = ["bzip2", "gzip", "futures-io"] }
 async-fs = "2.1"
 async-tar = "0.5.1"
 async-task = "4.7"
