@@ -1222,6 +1222,16 @@ float4 fill_color(Background background,
           break;
         }
       }
+
+      {
+        float2 seed = position * 0.6180339887;
+        float r1 = fract(sin(dot(seed, float2(12.9898, 78.233))) * 43758.5453);
+        float r2 = fract(sin(dot(seed, float2(39.3460, 11.135))) * 24634.6345);
+        float tri = r1 + r2 - 1.0;
+        color.rgb += tri * 2.0 / 255.0;
+        color.a += tri * 3.0 / 255.0;
+      }
+
       break;
     }
     case 2: {
