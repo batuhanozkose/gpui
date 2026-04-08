@@ -173,7 +173,7 @@ fn get_window_state(view: &Object) -> Option<Arc<Mutex<MacWindowState>>> {
             log::warn!("[GPUISurfaceView] window state ivar is null");
             return None;
         }
-        let rc = Arc::from_raw(raw as *mut Mutex<MacWindowState>);
+        let rc: Arc<Mutex<MacWindowState>> = Arc::from_raw(raw as *mut Mutex<MacWindowState>);
         let clone = rc.clone();
         mem::forget(rc);
         Some(clone)
@@ -238,7 +238,7 @@ extern "C" fn update_tracking_areas(this: &Object, _sel: Sel) {
 }
 
 /// Handles mouse events on the surface view by converting coordinates to
-/// view-local space and forwarding through the window's surface_event_callback.
+/// view-local space and forwarding through the window's event callback.
 /// Since isFlipped=YES, convertPoint:fromView:nil gives top-down coords
 /// that match the surface's GPUI hitbox coordinates.
 extern "C" fn handle_surface_view_event(this: &Object, _sel: Sel, native_event: id) {
