@@ -371,6 +371,5 @@ mod tests {
         assert_eq!(mapped.inner().key, "$");
         assert_eq!(mapped.key(), "4");
         assert_eq!(*mapped.modifiers(), Modifiers::control_shift());
-            native_key_code: None,
     }
 }
