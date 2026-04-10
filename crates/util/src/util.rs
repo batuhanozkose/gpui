@@ -1,6 +1,7 @@
 pub mod arc_cow;
 pub mod archive;
 pub mod command;
+pub mod disambiguate;
 pub mod fs;
 pub mod markdown;
 pub mod path_list;
