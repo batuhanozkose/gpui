@@ -30,10 +30,12 @@ use crate::{
     TaffyLayoutEngine, Task, TextRenderingMode, TextStyle, TextStyleRefinement, ThermalState,
     TransformationMatrix, Underline, UnderlineStyle, WindowAppearance, WindowBackgroundAppearance,
     WindowBounds, WindowControls, WindowDecorations, WindowOptions, WindowParams,
-    WindowTabbingMode, WindowTextSystem, div, point, prelude::*, px, rems, size, transparent_black,
+    WindowTextSystem, point, prelude::*, px, rems, size, transparent_black,
 };
 use anyhow::{Context as _, Result, anyhow};
 use collections::{FxHashMap, FxHashSet};
+#[cfg(target_os = "macos")]
+use crate::{WindowTabbingMode, div};
 #[cfg(target_os = "macos")]
 use core_video::pixel_buffer::CVPixelBuffer;
 use derive_more::{Deref, DerefMut};
@@ -1747,6 +1749,7 @@ pub struct NativeToolbar {
     items: Vec<NativeToolbarItem>,
 }
 
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 struct NativeToolbarHostedSurface {
     item_id: SharedString,
     view: AnyView,
@@ -7065,6 +7068,8 @@ impl Window {
         );
     }
 
+    /// Defers drawing an element until the paint phase, targeting either the local window
+    /// or a registered hosted surface.
     pub fn defer_draw_with_target(
         &mut self,
         element: AnyElement,
