@@ -273,6 +273,7 @@ impl Keystroke {
 
 impl KeybindingKeystroke {
     #[cfg(target_os = "windows")]
+    /// Creates a Windows keybinding keystroke with explicit display metadata.
     pub fn new(inner: Keystroke, display_modifiers: Modifiers, display_key: String) -> Self {
         KeybindingKeystroke {
             inner,
