@@ -28,6 +28,7 @@ image.workspace = true
 itertools.workspace = true
 log.workspace = true
 parking_lot.workspace = true
+gpui_util.workspace = true
 rand.workspace = true
 raw-window-handle = "0.6"
 smallvec.workspace = true

@@ -20,9 +20,7 @@ use windows::{
         Foundation::*,
         Graphics::Dwm::*,
         Graphics::Gdi::*,
-        System::{
-            Com::*, Diagnostics::Debug::MessageBeep, LibraryLoader::*, Ole::*, SystemServices::*,
-        },
+        System::{Com::*, LibraryLoader::*, Ole::*, SystemServices::*},
         UI::{Controls::*, HiDpi::*, Input::KeyboardAndMouse::*, Shell::*, WindowsAndMessaging::*},
     },
     core::*,
@@ -952,10 +950,6 @@ impl PlatformWindow for WindowsWindow {
         self.0.update_ime_position(self.0.hwnd, caret_position);
     }
 
-    fn play_system_bell(&self) {
-        // MB_OK: The sound specified as the Windows Default Beep sound.
-        let _ = unsafe { MessageBeep(MB_OK) };
-    }
 }
 
 #[implement(IDropTarget)]
