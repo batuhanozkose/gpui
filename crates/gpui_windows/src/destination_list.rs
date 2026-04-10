@@ -176,7 +176,13 @@ fn add_recent_folders(
         }
 
         if tasks.GetCount().unwrap_or(0) > 0 {
-            list.AppendCategory(&HSTRING::from("Recent Folders"), &tasks)?;
+            match list.AppendCategory(&HSTRING::from("Recent Folders"), &tasks) {
+                Ok(()) => {}
+                Err(err) if err.code() == windows::Win32::Foundation::E_ACCESSDENIED => {
+                    return Ok(());
+                }
+                Err(err) => return Err(err.into()),
+            }
         }
         Ok(())
     }
