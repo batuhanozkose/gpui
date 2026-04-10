@@ -1,5 +1,63 @@
 use std::fmt::{Display, Formatter};
 
+/// Generates a URL-friendly slug from heading text (e.g. "Hello World" -> "hello-world").
+pub fn generate_heading_slug(text: &str) -> String {
+    text.trim()
+        .chars()
+        .filter_map(|character| {
+            if character.is_alphanumeric() || character == '-' || character == '_' {
+                Some(character.to_lowercase().next().unwrap_or(character))
+            } else if character == ' ' {
+                Some('-')
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Returns true if the URL starts with a URI scheme (RFC 3986 sec. 3.1).
+fn has_uri_scheme(url: &str) -> bool {
+    let mut characters = url.chars();
+    match characters.next() {
+        Some(character) if character.is_ascii_alphabetic() => {}
+        _ => return false,
+    }
+    for character in characters {
+        if character == ':' {
+            return true;
+        }
+        if !(character.is_ascii_alphanumeric() || character == '+' || character == '-' || character == '.')
+        {
+            return false;
+        }
+    }
+    false
+}
+
+/// Splits a relative URL into its path and `#fragment` parts.
+/// Absolute URLs are returned as-is with no fragment.
+pub fn split_local_url_fragment(url: &str) -> (&str, Option<&str>) {
+    if has_uri_scheme(url) {
+        return (url, None);
+    }
+    match url.find('#') {
+        Some(position) => {
+            let path = &url[..position];
+            let fragment = &url[position + 1..];
+            (
+                path,
+                if fragment.is_empty() {
+                    None
+                } else {
+                    Some(fragment)
+                },
+            )
+        }
+        None => (url, None),
+    }
+}
+
 /// Indicates that the wrapped `String` is markdown text.
 #[derive(Debug, Clone)]
 pub struct MarkdownString(pub String);
