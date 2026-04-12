@@ -59,9 +59,9 @@ impl KeyContext {
 
     /// Parse a key context from a string.
     /// The key context format is very simple:
-    /// - either a single identifier, such as `TitleBar`
+    /// - either a single identifier, such as `StatusBar`
     /// - or a key value pair, such as `mode = visible`
-    /// - separated by whitespace, such as `TitleBar mode = visible`
+    /// - separated by whitespace, such as `StatusBar mode = visible`
     pub fn parse(source: &str) -> Result<Self> {
         let mut context = Self::default();
         let source = skip_whitespace(source);
@@ -223,7 +223,7 @@ impl KeyBindingContextPredicate {
     /// A basic equivalence check against a set of identifiers can performed by
     /// simply writing a string:
     ///
-    /// `TitleBar` -> A predicate that will match a context with the identifier `TitleBar`
+    /// `StatusBar` -> A predicate that will match a context with the identifier `StatusBar`
     ///
     /// You can also specify a key-value pair:
     ///
@@ -232,15 +232,15 @@ impl KeyBindingContextPredicate {
     ///
     /// And a logical operations combining these two checks:
     ///
-    /// `TitleBar && mode == visible` -> A predicate that will match a context with the
-    ///                                   identifier `TitleBar` and the key `mode`
+    /// `StatusBar && mode == visible` -> A predicate that will match a context with the
+    ///                                   identifier `StatusBar` and the key `mode`
     ///                                   with the value `visible`
     ///
     ///
     /// There is also a special child `>` operator that will match a predicate that is
     /// below another predicate:
     ///
-    /// `TitleBar > mode == visible` -> A predicate that will match a context identifier `TitleBar`
+    /// `StatusBar > mode == visible` -> A predicate that will match a context identifier `StatusBar`
     ///                                  and a child context that has the key `mode` with the
     ///                                  value `visible`
     ///
@@ -395,12 +395,20 @@ impl KeyBindingContextPredicate {
             }
             _ if is_identifier_char(next) => {
                 let len = source
-                    .find(|c: char| !is_identifier_char(c))
+                    .find(|c: char| !is_identifier_char(c) && !is_vim_operator_char(c))
                     .unwrap_or(source.len());
                 let (identifier, rest) = source.split_at(len);
                 source = skip_whitespace(rest);
                 Ok((
                     KeyBindingContextPredicate::Identifier(identifier.to_string().into()),
+                    source,
+                ))
+            }
+            _ if is_vim_operator_char(next) => {
+                let (operator, rest) = source.split_at(1);
+                source = skip_whitespace(rest);
+                Ok((
+                    KeyBindingContextPredicate::Identifier(operator.to_string().into()),
                     source,
                 ))
             }
@@ -491,6 +499,10 @@ const PRECEDENCE_NOT: u32 = 5;
 
 fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '-'
+}
+
+fn is_vim_operator_char(c: char) -> bool {
+    c == '>' || c == '<' || c == '~' || c == '"' || c == '?'
 }
 
 fn skip_whitespace(source: &str) -> &str {
@@ -667,7 +679,7 @@ mod tests {
         assert_is_superset("editor", "editor", true);
         assert_is_superset("editor", "workspace", false);
 
-        assert_is_superset("editor", "editor && some_mode", true);
+        assert_is_superset("editor", "editor && vim_mode", true);
         assert_is_superset("editor", "mode == full && editor", true);
         assert_is_superset("editor && mode == full", "editor", false);
 
@@ -798,6 +810,8 @@ mod tests {
         assert!(not_workspace.eval(slice::from_ref(&editor_context)));
         assert!(!not_workspace.eval(&workspace_pane_editor));
     }
+
+    // MARK: - Display
 
     #[test]
     fn test_context_display() {
