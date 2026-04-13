@@ -1918,12 +1918,9 @@ mod test {
             }
         }
 
-        let view = cx.update(|_, cx| cx.new(|_| TestView(state.clone())));
-
         state.set_follow_mode(FollowMode::Tail);
-
-        cx.draw(point(px(0.), px(0.)), size(px(100.), px(200.)), |_, _| {
-            view.clone().into_any_element()
+        cx.draw(point(px(0.), px(0.)), size(px(100.), px(200.)), |_, cx| {
+            cx.new(|_| TestView(state.clone())).into_any_element()
         });
         assert!(state.is_following_tail());
 
@@ -1944,8 +1941,8 @@ mod test {
 
         // After a paint, follow_tail should re-engage because the
         // layout confirmed we're at the true bottom.
-        cx.draw(point(px(0.), px(0.)), size(px(100.), px(200.)), |_, _| {
-            view.clone().into_any_element()
+        cx.draw(point(px(0.), px(0.)), size(px(100.), px(200.)), |_, cx| {
+            cx.new(|_| TestView(state.clone())).into_any_element()
         });
         assert!(
             state.is_following_tail(),

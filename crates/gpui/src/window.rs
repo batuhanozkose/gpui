@@ -3766,6 +3766,7 @@ impl Frame {
         self.dispatch_tree.clear();
         self.scene.clear();
         self.input_handlers.clear();
+        self.focused_input_contexts.clear();
         self.tooltip_requests.clear();
         self.cursor_styles.clear();
         self.hitboxes.clear();
@@ -6188,6 +6189,8 @@ impl Window {
         let mut overlay_mouse_listeners: Vec<Option<AnyMouseListener>> = Vec::new();
         let mut overlay_hitboxes: Vec<Hitbox> = Vec::new();
         let mut overlay_input_handlers: Vec<Option<PlatformInputHandler>> = Vec::new();
+        let mut overlay_focused_input_contexts: FxHashMap<FocusId, Vec<KeyContext>> =
+            FxHashMap::default();
         let mut overlay_has_content = false;
 
         for id in surface_ids {
@@ -6203,6 +6206,8 @@ impl Window {
             let main_hitboxes = std::mem::take(&mut self.next_frame.hitboxes);
             let main_deferred_draws = std::mem::take(&mut self.next_frame.deferred_draws);
             let main_input_handlers = std::mem::take(&mut self.next_frame.input_handlers);
+            let main_focused_input_contexts =
+                std::mem::take(&mut self.next_frame.focused_input_contexts);
             let main_cursor_styles = std::mem::take(&mut self.next_frame.cursor_styles);
             let main_tooltip_requests = std::mem::take(&mut self.next_frame.tooltip_requests);
 
@@ -6295,6 +6300,10 @@ impl Window {
                     std::mem::replace(&mut self.next_frame.hitboxes, overlay_hitboxes);
                 let surface_input_handlers =
                     std::mem::replace(&mut self.next_frame.input_handlers, overlay_input_handlers);
+                let surface_focused_input_contexts = std::mem::replace(
+                    &mut self.next_frame.focused_input_contexts,
+                    overlay_focused_input_contexts,
+                );
                 let surface_cursor_styles = std::mem::take(&mut self.next_frame.cursor_styles);
                 let surface_tooltip_requests =
                     std::mem::take(&mut self.next_frame.tooltip_requests);
@@ -6333,6 +6342,10 @@ impl Window {
                     std::mem::replace(&mut self.next_frame.hitboxes, surface_hitboxes);
                 overlay_input_handlers =
                     std::mem::replace(&mut self.next_frame.input_handlers, surface_input_handlers);
+                overlay_focused_input_contexts = std::mem::replace(
+                    &mut self.next_frame.focused_input_contexts,
+                    surface_focused_input_contexts,
+                );
                 self.next_frame.cursor_styles = surface_cursor_styles;
                 self.next_frame.tooltip_requests = surface_tooltip_requests;
                 self.next_frame.deferred_draws = surface_deferred_draws;
@@ -6366,6 +6379,13 @@ impl Window {
             self.next_frame
                 .input_handlers
                 .extend(surface_input_handlers);
+            let surface_focused_input_contexts = std::mem::replace(
+                &mut self.next_frame.focused_input_contexts,
+                main_focused_input_contexts,
+            );
+            self.next_frame
+                .focused_input_contexts
+                .extend(surface_focused_input_contexts);
             self.next_frame.cursor_styles = main_cursor_styles;
             self.next_frame.tooltip_requests = main_tooltip_requests;
 
@@ -6383,6 +6403,9 @@ impl Window {
             self.next_frame
                 .input_handlers
                 .extend(overlay_input_handlers);
+            self.next_frame
+                .focused_input_contexts
+                .extend(overlay_focused_input_contexts);
         }
 
         self.platform_window
@@ -6625,6 +6648,9 @@ impl Window {
                 .iter_mut()
                 .map(|handler| handler.take()),
         );
+        self.next_frame
+            .focused_input_contexts
+            .extend(self.rendered_frame.focused_input_contexts.clone());
         self.next_frame.mouse_listeners.extend(
             self.rendered_frame.mouse_listeners
                 [range.start.mouse_listeners_index..range.end.mouse_listeners_index]
