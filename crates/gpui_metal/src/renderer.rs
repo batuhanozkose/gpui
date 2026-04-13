@@ -40,8 +40,13 @@ struct CGSize {
 }
 
 type NSUInteger = u64;
+#[cfg(target_arch = "x86_64")]
+const YES: objc::runtime::BOOL = 1;
+#[cfg(not(target_arch = "x86_64"))]
 const YES: objc::runtime::BOOL = true;
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+const NO: objc::runtime::BOOL = 0;
+#[cfg(all(target_os = "macos", not(target_arch = "x86_64")))]
 const NO: objc::runtime::BOOL = false;
 
 // Exported to metal
