@@ -217,6 +217,10 @@ impl DispatchTree {
         self.context_stack.push(context);
     }
 
+    pub fn current_context_stack(&self) -> &[KeyContext] {
+        &self.context_stack
+    }
+
     pub fn set_focus_id(&mut self, focus_id: FocusId) {
         let node_id = *self.node_stack.last().unwrap();
         self.nodes[node_id.0].focus_id = Some(focus_id);
@@ -518,6 +522,44 @@ impl DispatchTree {
         result
     }
 
+    pub fn dispatch_key_with_context_stack(
+        &self,
+        mut input: SmallVec<[Keystroke; 1]>,
+        keystroke: Keystroke,
+        context_stack: &[KeyContext],
+    ) -> DispatchResult {
+        input.push(keystroke.clone());
+        let (bindings, pending) = self.keymap.borrow().bindings_for_input(&input, context_stack);
+
+        if pending {
+            return DispatchResult {
+                pending: input,
+                pending_has_binding: !bindings.is_empty(),
+                context_stack: context_stack.to_vec(),
+                ..Default::default()
+            };
+        } else if !bindings.is_empty() {
+            return DispatchResult {
+                bindings,
+                context_stack: context_stack.to_vec(),
+                ..Default::default()
+            };
+        } else if input.len() == 1 {
+            return DispatchResult {
+                context_stack: context_stack.to_vec(),
+                ..Default::default()
+            };
+        }
+        input.pop();
+
+        let (suffix, mut to_replay) = self.replay_prefix_with_context_stack(input, context_stack);
+
+        let mut result = self.dispatch_key_with_context_stack(suffix, keystroke, context_stack);
+        to_replay.extend(result.to_replay);
+        result.to_replay = to_replay;
+        result
+    }
+
     /// If the user types a matching prefix of a binding and then waits for a timeout
     /// flush_dispatch() converts any previously pending input to replay events.
     pub fn flush_dispatch(
@@ -534,6 +576,21 @@ impl DispatchTree {
         to_replay
     }
 
+    pub fn flush_dispatch_with_context_stack(
+        &self,
+        input: SmallVec<[Keystroke; 1]>,
+        context_stack: &[KeyContext],
+    ) -> SmallVec<[Replay; 1]> {
+        let (suffix, mut to_replay) =
+            self.replay_prefix_with_context_stack(input, context_stack);
+
+        if !suffix.is_empty() {
+            to_replay.extend(self.flush_dispatch_with_context_stack(suffix, context_stack))
+        }
+
+        to_replay
+    }
+
     /// Converts the longest prefix of input to a replay event and returns the rest.
     fn replay_prefix(
         &self,
@@ -543,6 +600,34 @@ impl DispatchTree {
         let mut to_replay: SmallVec<[Replay; 1]> = Default::default();
         for last in (0..input.len()).rev() {
             let (bindings, _, _) = self.bindings_for_input(&input[0..=last], dispatch_path);
+            if !bindings.is_empty() {
+                to_replay.push(Replay {
+                    keystroke: input.drain(0..=last).next_back().unwrap(),
+                    bindings,
+                });
+                break;
+            }
+        }
+        if to_replay.is_empty() {
+            to_replay.push(Replay {
+                keystroke: input.remove(0),
+                ..Default::default()
+            });
+        }
+        (input, to_replay)
+    }
+
+    fn replay_prefix_with_context_stack(
+        &self,
+        mut input: SmallVec<[Keystroke; 1]>,
+        context_stack: &[KeyContext],
+    ) -> (SmallVec<[Keystroke; 1]>, SmallVec<[Replay; 1]>) {
+        let mut to_replay: SmallVec<[Replay; 1]> = Default::default();
+        for last in (0..input.len()).rev() {
+            let (bindings, _) = self
+                .keymap
+                .borrow()
+                .bindings_for_input(&input[0..=last], context_stack);
             if !bindings.is_empty() {
                 to_replay.push(Replay {
                     keystroke: input.drain(0..=last).next_back().unwrap(),
@@ -593,6 +678,11 @@ impl DispatchTree {
             |node_id| Some(self.node(node_id.parent?)),
         )
         .filter_map(|node| node.view_id)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn view_node_id(&self, view_id: EntityId) -> Option<DispatchNodeId> {
+        self.view_node_ids.get(&view_id).copied()
     }
 
     pub fn node(&self, node_id: DispatchNodeId) -> &DispatchNode {

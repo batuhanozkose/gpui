@@ -3696,6 +3696,7 @@ pub(crate) struct Frame {
     pub(crate) window_control_hitboxes: Vec<(WindowControlArea, Hitbox)>,
     pub(crate) deferred_draws: Vec<DeferredDraw>,
     pub(crate) input_handlers: Vec<Option<PlatformInputHandler>>,
+    pub(crate) focused_input_contexts: FxHashMap<FocusId, Vec<KeyContext>>,
     pub(crate) tooltip_requests: Vec<Option<TooltipRequest>>,
     pub(crate) cursor_styles: Vec<CursorStyleRequest>,
     #[cfg(any(test, feature = "test-support"))]
@@ -3742,6 +3743,7 @@ impl Frame {
             window_control_hitboxes: Vec::new(),
             deferred_draws: Vec::new(),
             input_handlers: Vec::new(),
+            focused_input_contexts: FxHashMap::default(),
             tooltip_requests: Vec::new(),
             cursor_styles: Vec::new(),
 
@@ -4865,6 +4867,19 @@ impl Window {
                 })
                 .log_err();
         })
+    }
+
+    /// Dispatches an action along the rendered dispatch path associated with a view.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn dispatch_action_on_view(
+        &mut self,
+        view_id: EntityId,
+        action: Box<dyn Action>,
+        cx: &mut App,
+    ) {
+        if let Some(node_id) = self.rendered_frame.dispatch_tree.view_node_id(view_id) {
+            self.dispatch_action_on_node(node_id, action.as_ref(), cx);
+        }
     }
 
     pub(crate) fn dispatch_keystroke_observers(
@@ -7703,9 +7718,9 @@ impl Window {
     /// Sets the focus handle for the current element. This handle will be used to manage focus state
     /// and keyboard event dispatch for the element.
     ///
-    /// This method should only be called as part of the prepaint phase of element drawing.
+    /// This method should only be called as part of the prepaint or paint phase of element drawing.
     pub fn set_focus_handle(&mut self, focus_handle: &FocusHandle, _: &App) {
-        self.invalidator.debug_assert_prepaint();
+        self.invalidator.debug_assert_paint_or_prepaint();
         if focus_handle.is_focused(self) {
             self.next_frame.focus = Some(focus_handle.id);
         }
@@ -7773,6 +7788,10 @@ impl Window {
 
         if focus_handle.is_focused(self) {
             let cx = self.to_async(cx);
+            self.next_frame.focused_input_contexts.insert(
+                focus_handle.id,
+                self.next_frame.dispatch_tree.current_context_stack().to_vec(),
+            );
             self.next_frame
                 .input_handlers
                 .push(Some(PlatformInputHandler::new(cx, Box::new(input_handler))));
@@ -8350,11 +8369,24 @@ impl Window {
             currently_pending = PendingInput::default();
         }
 
-        let match_result = self.rendered_frame.dispatch_tree.dispatch_key(
-            currently_pending.keystrokes,
-            keystroke,
-            &dispatch_path,
-        );
+        let focused_input_context = self
+            .focus
+            .and_then(|focus_id| self.rendered_frame.focused_input_contexts.get(&focus_id))
+            .cloned();
+
+        let match_result = if let Some(ref context_stack) = focused_input_context {
+            self.rendered_frame.dispatch_tree.dispatch_key_with_context_stack(
+                currently_pending.keystrokes,
+                keystroke,
+                context_stack,
+            )
+        } else {
+            self.rendered_frame.dispatch_tree.dispatch_key(
+                currently_pending.keystrokes,
+                keystroke,
+                &dispatch_path,
+            )
+        };
 
         if !match_result.to_replay.is_empty() {
             self.replay_pending_input(match_result.to_replay, cx);
@@ -8395,10 +8427,27 @@ impl Window {
                         let dispatch_path =
                             window.rendered_frame.dispatch_tree.dispatch_path(node_id);
 
-                        let to_replay = window
-                            .rendered_frame
-                            .dispatch_tree
-                            .flush_dispatch(currently_pending.keystrokes, &dispatch_path);
+                        let focused_input_context = window
+                            .focus
+                            .and_then(|focus_id| {
+                                window.rendered_frame.focused_input_contexts.get(&focus_id)
+                            })
+                            .cloned();
+
+                        let to_replay = if let Some(ref context_stack) = focused_input_context {
+                            window
+                                .rendered_frame
+                                .dispatch_tree
+                                .flush_dispatch_with_context_stack(
+                                    currently_pending.keystrokes,
+                                    context_stack,
+                                )
+                        } else {
+                            window
+                                .rendered_frame
+                                .dispatch_tree
+                                .flush_dispatch(currently_pending.keystrokes, &dispatch_path)
+                        };
 
                         window.pending_input_changed(cx);
                         window.replay_pending_input(to_replay, cx)
@@ -8782,6 +8831,12 @@ impl Window {
 
     /// Returns the current context stack.
     pub fn context_stack(&self) -> Vec<KeyContext> {
+        if let Some(focus_id) = self.focus
+            && let Some(contexts) = self.rendered_frame.focused_input_contexts.get(&focus_id)
+        {
+            return contexts.clone();
+        }
+
         let node_id = self.focus_node_id_in_rendered_frame(self.focus);
         let dispatch_tree = &self.rendered_frame.dispatch_tree;
         dispatch_tree
@@ -8885,6 +8940,10 @@ impl Window {
         &self,
         focus_handle: &FocusHandle,
     ) -> Option<Vec<KeyContext>> {
+        if let Some(contexts) = self.rendered_frame.focused_input_contexts.get(&focus_handle.id) {
+            return Some(contexts.clone());
+        }
+
         let dispatch_tree = &self.rendered_frame.dispatch_tree;
         let node_id = dispatch_tree.focusable_node_id(focus_handle.id)?;
         let context_stack: Vec<_> = dispatch_tree

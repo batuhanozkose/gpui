@@ -1,7 +1,8 @@
 use crate::{
-    AnyWindowHandle, AtlasKey, AtlasTextureId, AtlasTile, Bounds, DispatchEventResult, GpuSpecs,
-    Pixels, PlatformAtlas, PlatformDisplay, PlatformInput, PlatformInputHandler, PlatformWindow,
-    Point, PromptButton, RequestFrameOptions, Size, TestPlatform, TileId, WindowAppearance,
+    AnyWindowHandle, AtlasKey, AtlasTextureId, AtlasTile, Bounds, DevicePixels,
+    DispatchEventResult, GpuSpecs, Pixels, PlatformAtlas, PlatformDisplay, PlatformInput,
+    PlatformInputHandler, PlatformSurface, PlatformWindow, Point, PromptButton,
+    RequestFrameOptions, Scene, Size, TestPlatform, TileId, WindowAppearance,
     WindowBackgroundAppearance, WindowBounds, WindowControlArea, WindowParams,
 };
 use collections::HashMap;
@@ -33,6 +34,46 @@ pub(crate) struct TestWindowState {
 
 #[derive(Clone)]
 pub struct TestWindow(pub(crate) Rc<Mutex<TestWindowState>>);
+
+#[cfg(target_os = "macos")]
+struct TestSurface {
+    native_view: Box<u8>,
+    content_size: Size<Pixels>,
+}
+
+#[cfg(target_os = "macos")]
+impl TestSurface {
+    fn new(content_size: Size<Pixels>) -> Self {
+        Self {
+            native_view: Box::new(0),
+            content_size,
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl PlatformSurface for TestSurface {
+    fn native_view_ptr(&self) -> *mut std::ffi::c_void {
+        (self.native_view.as_ref() as *const u8).cast_mut().cast()
+    }
+
+    fn content_size(&self) -> Size<Pixels> {
+        self.content_size
+    }
+
+    fn set_contents_scale(&self, _scale: f64) {}
+
+    fn update_drawable_size(&mut self, size: Size<DevicePixels>) {
+        self.content_size = Size {
+            width: Pixels(size.width.0 as f32 / 2.0),
+            height: Pixels(size.height.0 as f32 / 2.0),
+        };
+    }
+
+    fn draw(&mut self, _scene: &Scene) {}
+
+    fn set_window_state(&mut self, _raw_state_ptr: *const std::ffi::c_void) {}
+}
 
 impl HasWindowHandle for TestWindow {
     fn window_handle(
@@ -256,6 +297,11 @@ impl PlatformWindow for TestWindow {
 
     fn on_resize(&self, callback: Box<dyn FnMut(Size<Pixels>, f32)>) {
         self.0.lock().resize_callback = Some(callback)
+    }
+
+    #[cfg(target_os = "macos")]
+    fn create_surface(&self) -> Option<Box<dyn PlatformSurface>> {
+        Some(Box::new(TestSurface::new(self.content_size())))
     }
 
     fn on_moved(&self, callback: Box<dyn FnMut()>) {

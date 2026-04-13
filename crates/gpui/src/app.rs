@@ -1994,6 +1994,17 @@ impl App {
         RefCell::borrow(&self.keymap).all_bindings_for_input(input)
     }
 
+    /// Returns the bindings that match the given input for an explicit context stack,
+    /// along with whether the input is still a prefix of a longer binding.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn bindings_for_input_in_context(
+        &self,
+        input: &[Keystroke],
+        context_stack: &[KeyContext],
+    ) -> (SmallVec<[KeyBinding; 1]>, bool) {
+        RefCell::borrow(&self.keymap).bindings_for_input(input, context_stack)
+    }
+
     /// Get all non-internal actions that have been registered, along with their schemas.
     pub fn action_schemas(
         &self,
