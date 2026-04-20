@@ -49,7 +49,7 @@ mod windows {
     /// You can set the `GPUI_FXC_PATH` environment variable to specify the path to the fxc.exe compiler.
     fn compile_shaders() {
         let shader_path = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
-            .join("src/platform/windows/shaders.hlsl");
+            .join("../gpui_windows/src/shaders.hlsl");
         let out_dir = std::env::var("OUT_DIR").unwrap();
 
         println!("cargo:rerun-if-changed={}", shader_path.display());
@@ -86,7 +86,7 @@ mod windows {
 
         {
             let shader_path = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join("src/platform/windows/color_text_raster.hlsl");
+                .join("../gpui_windows/src/color_text_raster.hlsl");
             compile_shader_for_module(
                 "emoji_rasterization",
                 &out_dir,
