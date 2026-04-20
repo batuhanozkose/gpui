@@ -180,8 +180,6 @@ mod shader_compilation {
         shader_path: &str,
         target: &str,
     ) {
-        let shader_dir = Path::new(shader_path).parent().unwrap();
-        let shader_file = Path::new(shader_path).file_name().unwrap();
         let output = Command::new(fxc_path)
             .args([
                 "/T",
@@ -193,8 +191,6 @@ mod shader_compilation {
                 "/Vn",
                 var_name,
                 "/O3",
-                "/I",
-                shader_dir.to_str().unwrap(),
                 shader_path,
             ])
             .output();
