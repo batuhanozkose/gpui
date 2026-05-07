@@ -5,6 +5,7 @@ use crate::{
 #[cfg(target_os = "macos")]
 use core_video::pixel_buffer::CVPixelBuffer;
 use refineable::Refineable;
+use std::sync::Arc;
 
 /// A source of a surface's content.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -12,12 +13,39 @@ pub enum SurfaceSource {
     /// A macOS image buffer from CoreVideo
     #[cfg(target_os = "macos")]
     Surface(CVPixelBuffer),
+    /// Raw BGRA pixel buffer for Windows D3D11 rendering
+    #[cfg(target_os = "windows")]
+    BgraPixels {
+        data: Arc<Vec<u8>>,
+        width: u32,
+        height: u32,
+    },
 }
 
 #[cfg(target_os = "macos")]
 impl From<CVPixelBuffer> for SurfaceSource {
     fn from(value: CVPixelBuffer) -> Self {
         SurfaceSource::Surface(value)
+    }
+}
+
+/// Raw BGRA frame data for Windows surface rendering.
+#[cfg(target_os = "windows")]
+#[derive(Clone, Debug)]
+pub struct BgraFrame {
+    pub data: Arc<Vec<u8>>,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[cfg(target_os = "windows")]
+impl From<BgraFrame> for SurfaceSource {
+    fn from(value: BgraFrame) -> Self {
+        SurfaceSource::BgraPixels {
+            data: value.data,
+            width: value.width,
+            height: value.height,
+        }
     }
 }
 
@@ -29,7 +57,6 @@ pub struct Surface {
 }
 
 /// Create a new surface element.
-#[cfg(target_os = "macos")]
 pub fn surface(source: impl Into<SurfaceSource>) -> Surface {
     Surface {
         source: source.into(),
@@ -86,10 +113,10 @@ impl Element for Surface {
         &mut self,
         _global_id: Option<&GlobalElementId>,
         _inspector_id: Option<&InspectorElementId>,
-        #[cfg_attr(not(target_os = "macos"), allow(unused_variables))] bounds: Bounds<Pixels>,
+        bounds: Bounds<Pixels>,
         _: &mut Self::RequestLayoutState,
         _: &mut Self::PrepaintState,
-        #[cfg_attr(not(target_os = "macos"), allow(unused_variables))] window: &mut Window,
+        window: &mut Window,
         _: &mut App,
     ) {
         match &self.source {
@@ -97,8 +124,13 @@ impl Element for Surface {
             SurfaceSource::Surface(surface) => {
                 let size = crate::size(surface.get_width().into(), surface.get_height().into());
                 let new_bounds = self.object_fit.get_bounds(bounds, size);
-                // TODO: Add support for corner_radii
                 window.paint_surface(new_bounds, surface.clone());
+            }
+            #[cfg(target_os = "windows")]
+            SurfaceSource::BgraPixels { data, width, height } => {
+                let size = crate::size((*width).into(), (*height).into());
+                let new_bounds = self.object_fit.get_bounds(bounds, size);
+                window.paint_surface_rgba(new_bounds, data.clone(), *width, *height);
             }
             #[allow(unreachable_patterns)]
             _ => {}

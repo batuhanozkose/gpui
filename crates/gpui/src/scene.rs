@@ -718,6 +718,12 @@ pub struct PaintSurface {
     pub content_mask: ContentMask<ScaledPixels>,
     #[cfg(target_os = "macos")]
     pub image_buffer: core_video::pixel_buffer::CVPixelBuffer,
+    #[cfg(target_os = "windows")]
+    pub bgra_data: std::sync::Arc<Vec<u8>>,
+    #[cfg(target_os = "windows")]
+    pub image_width: u32,
+    #[cfg(target_os = "windows")]
+    pub image_height: u32,
 }
 
 impl From<PaintSurface> for Primitive {

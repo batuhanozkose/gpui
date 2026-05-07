@@ -698,6 +698,83 @@ impl DirectXRenderer {
         if surfaces.is_empty() {
             return Ok(());
         }
+
+        let devices = self.devices.as_ref().context("devices missing")?;
+        let resources = self.resources.as_ref().context("resources missing")?;
+        let device = &devices.device;
+        let device_context = &devices.device_context;
+
+        for surface in surfaces {
+            let width = surface.image_width;
+            let height = surface.image_height;
+            if width == 0 || height == 0 || surface.bgra_data.is_empty() {
+                continue;
+            }
+
+            let desc = D3D11_TEXTURE2D_DESC {
+                Width: width,
+                Height: height,
+                MipLevels: 1,
+                ArraySize: 1,
+                Format: RENDER_TARGET_FORMAT,
+                SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
+                Usage: D3D11_USAGE_DEFAULT,
+                BindFlags: D3D11_BIND_SHADER_RESOURCE.0 as u32,
+                ..Default::default()
+            };
+
+            let init_data = D3D11_SUBRESOURCE_DATA {
+                pSysMem: surface.bgra_data.as_ptr() as *const _,
+                SysMemPitch: width * 4,
+                SysMemSlicePitch: 0,
+            };
+
+            let texture: ID3D11Texture2D =
+                unsafe { device.CreateTexture2D(&desc, Some(&init_data), None)? };
+
+            let srv: ID3D11ShaderResourceView = unsafe {
+                device.CreateShaderResourceView(&texture, None, None)?
+            };
+
+            // Blit the texture to the render target at the surface bounds.
+            let dst_box = D3D11_BOX {
+                left: surface.bounds.origin.x.0.max(0.0) as u32,
+                top: surface.bounds.origin.y.0.max(0.0) as u32,
+                front: 0,
+                right: (surface.bounds.origin.x.0 + surface.bounds.size.width.0).max(0.0) as u32,
+                bottom: (surface.bounds.origin.y.0 + surface.bounds.size.height.0).max(0.0) as u32,
+                back: 1,
+            };
+
+            if let Some(ref rt) = resources.render_target {
+                unsafe {
+                    // If source and destination are the same size, use CopySubresourceRegion.
+                    // Otherwise, we'd need a shader-based stretch — for now just copy at 1:1
+                    // (fractional pixels will be clipped by the dst box).
+                    let src_box = D3D11_BOX {
+                        left: 0,
+                        top: 0,
+                        front: 0,
+                        right: width.min(dst_box.right - dst_box.left),
+                        bottom: height.min(dst_box.bottom - dst_box.top),
+                        back: 1,
+                    };
+                    if src_box.right > 0 && src_box.bottom > 0 {
+                        device_context.CopySubresourceRegion(
+                            rt,
+                            0,
+                            dst_box.left,
+                            dst_box.top,
+                            0,
+                            &texture,
+                            0,
+                            Some(&src_box),
+                        );
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 

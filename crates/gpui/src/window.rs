@@ -7603,6 +7603,34 @@ impl Window {
         });
     }
 
+    /// Paint a BGRA surface into the scene for the next frame on Windows.
+    ///
+    /// This method should only be called as part of the paint phase of element drawing.
+    #[cfg(target_os = "windows")]
+    pub fn paint_surface_rgba(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        bgra_data: std::sync::Arc<Vec<u8>>,
+        image_width: u32,
+        image_height: u32,
+    ) {
+        use crate::PaintSurface;
+
+        self.invalidator.debug_assert_paint();
+
+        let scale_factor = self.scale_factor();
+        let bounds = bounds.scale(scale_factor);
+        let content_mask = self.content_mask().scale(scale_factor);
+        self.next_frame.scene.insert_primitive(PaintSurface {
+            order: 0,
+            bounds,
+            content_mask,
+            bgra_data,
+            image_width,
+            image_height,
+        });
+    }
+
     /// Removes an image from the sprite atlas.
     pub fn drop_image(&mut self, data: Arc<RenderImage>) -> Result<()> {
         for frame_index in 0..data.frame_count() {
