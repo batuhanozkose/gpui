@@ -3,9 +3,10 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use ::util::ResultExt;
 use anyhow::{Context, Result};
+use util::ResultExt;
 use windows::{
+    core::Interface,
     Win32::{
         Foundation::HWND,
         Graphics::{
@@ -16,7 +17,6 @@ use windows::{
             Dxgi::{Common::*, *},
         },
     },
-    core::Interface,
 };
 
 use crate::directx_renderer::shader_resources::{RawShaderBytes, ShaderModule, ShaderTarget};
@@ -717,9 +717,12 @@ impl DirectXRenderer {
                 MipLevels: 1,
                 ArraySize: 1,
                 Format: RENDER_TARGET_FORMAT,
-                SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
+                SampleDesc: DXGI_SAMPLE_DESC {
+                    Count: 1,
+                    Quality: 0,
+                },
                 Usage: D3D11_USAGE_DEFAULT,
-                BindFlags: D3D11_BIND_SHADER_RESOURCE.0 as u32,
+                BindFlags: 0,
                 ..Default::default()
             };
 
@@ -729,20 +732,22 @@ impl DirectXRenderer {
                 SysMemSlicePitch: 0,
             };
 
+            let mut texture = None;
+            unsafe { device.CreateTexture2D(&desc, Some(&init_data), Some(&mut texture))? };
             let texture: ID3D11Texture2D =
-                unsafe { device.CreateTexture2D(&desc, Some(&init_data), None)? };
-
-            let srv: ID3D11ShaderResourceView = unsafe {
-                device.CreateShaderResourceView(&texture, None, None)?
-            };
+                texture.context("CreateTexture2D returned None for surface upload")?;
 
             // Blit the texture to the render target at the surface bounds.
             let dst_box = D3D11_BOX {
-                left: surface.bounds.origin.x.0.max(0.0) as u32,
-                top: surface.bounds.origin.y.0.max(0.0) as u32,
+                left: surface.bounds.origin.x.0.max(0.0).round() as u32,
+                top: surface.bounds.origin.y.0.max(0.0).round() as u32,
                 front: 0,
-                right: (surface.bounds.origin.x.0 + surface.bounds.size.width.0).max(0.0) as u32,
-                bottom: (surface.bounds.origin.y.0 + surface.bounds.size.height.0).max(0.0) as u32,
+                right: (surface.bounds.origin.x.0 + surface.bounds.size.width.0)
+                    .max(0.0)
+                    .round() as u32,
+                bottom: (surface.bounds.origin.y.0 + surface.bounds.size.height.0)
+                    .max(0.0)
+                    .round() as u32,
                 back: 1,
             };
 
@@ -1657,11 +1662,11 @@ pub(crate) mod shader_resources {
 
     #[cfg(debug_assertions)]
     use windows::{
+        core::{HSTRING, PCSTR},
         Win32::Graphics::Direct3D::{
-            Fxc::{D3DCOMPILE_DEBUG, D3DCOMPILE_SKIP_OPTIMIZATION, D3DCompileFromFile},
+            Fxc::{D3DCompileFromFile, D3DCOMPILE_DEBUG, D3DCOMPILE_SKIP_OPTIMIZATION},
             ID3DBlob,
         },
-        core::{HSTRING, PCSTR},
     };
 
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -1851,7 +1856,7 @@ mod nvidia {
     };
 
     use anyhow::Result;
-    use windows::{Win32::System::LibraryLoader::GetProcAddress, core::s};
+    use windows::{core::s, Win32::System::LibraryLoader::GetProcAddress};
 
     use crate::with_dll_library;
 
@@ -1918,7 +1923,7 @@ mod amd {
     use std::os::raw::{c_char, c_int, c_void};
 
     use anyhow::Result;
-    use windows::{Win32::System::LibraryLoader::GetProcAddress, core::s};
+    use windows::{core::s, Win32::System::LibraryLoader::GetProcAddress};
 
     use crate::with_dll_library;
 
@@ -2011,8 +2016,8 @@ mod amd {
 
 mod dxgi {
     use windows::{
-        Win32::Graphics::Dxgi::{IDXGIAdapter1, IDXGIDevice},
         core::Interface,
+        Win32::Graphics::Dxgi::{IDXGIAdapter1, IDXGIDevice},
     };
 
     pub(super) fn get_driver_version(adapter: &IDXGIAdapter1) -> anyhow::Result<String> {

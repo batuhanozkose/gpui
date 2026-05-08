@@ -3,12 +3,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::platform::native_controls::{MenuButtonConfig, NativeControlState, NativeMenuItemData};
+use crate::util::FluentBuilder;
 use crate::{
-    div, px, point, size, rgb, AbsoluteLength, AnyWindowHandle, App, AsyncApp, Bounds,
-    Context as _, DefiniteLength, DismissEvent, Element, ElementId, EventEmitter,
-    GlobalElementId, InteractiveElement, IntoElement, LayoutId, Length, MouseButton, ParentElement,
-    Pixels, Point, Render, SharedString, Styled, Style, StyleRefinement,
-    Window, WindowKind, WindowOptions, WindowBounds, InspectorElementId,
+    div, point, px, rgb, size, AbsoluteLength, AnyWindowHandle, App, AppContext as _, AsyncApp,
+    Bounds, Context, DefiniteLength, DismissEvent, Element, ElementId, EventEmitter,
+    GlobalElementId, InspectorElementId, InteractiveElement, IntoElement, LayoutId, Length,
+    MouseButton, ParentElement, Pixels, Point, Render, SharedString, Style, StyleRefinement,
+    Styled, Window, WindowBounds, WindowKind, WindowOptions,
 };
 
 use super::native_element_helpers::schedule_native_callback;
@@ -61,7 +62,6 @@ fn show_gpui_popup_menu(
 ) {
     let items: Vec<NativeMenuItem> = items.to_vec();
     let async_app = cx.to_async();
-    let parent_handle = window.window_handle();
 
     // Convert logical position to screen coordinates
     let window_origin = window.bounds().origin;
@@ -161,9 +161,7 @@ impl Render for PopupMenuView {
                     action_index += 1;
                 }
                 NativeMenuItem::Separator => {
-                    list = list.child(
-                        div().h(px(1.0)).my_1().bg(rgb(0x444444)),
-                    );
+                    list = list.child(div().h(px(1.0)).my_1().bg(rgb(0x444444)));
                 }
                 NativeMenuItem::Submenu { title, .. } => {
                     list = list.child(
@@ -195,9 +193,7 @@ fn deferred_update(
     f: impl FnOnce(&mut Window, &mut App) + 'static,
 ) {
     async_app.update(|cx| {
-        window_handle
-            .update(cx, |_, window, cx| f(window, cx))
-            .ok();
+        window_handle.update(cx, |_, window, cx| f(window, cx)).ok();
     });
 }
 
@@ -238,11 +234,7 @@ impl NativeMenuItem {
     pub fn enabled(self, enabled: bool) -> Self {
         match self {
             Self::Action { title, .. } => Self::Action { title, enabled },
-            Self::Submenu {
-                title,
-                items,
-                ..
-            } => Self::Submenu {
+            Self::Submenu { title, items, .. } => Self::Submenu {
                 title,
                 enabled,
                 items,

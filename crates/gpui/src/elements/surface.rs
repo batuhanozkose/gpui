@@ -5,6 +5,7 @@ use crate::{
 #[cfg(target_os = "macos")]
 use core_video::pixel_buffer::CVPixelBuffer;
 use refineable::Refineable;
+#[cfg(target_os = "windows")]
 use std::sync::Arc;
 
 /// A source of a surface's content.
@@ -119,6 +120,9 @@ impl Element for Surface {
         window: &mut Window,
         _: &mut App,
     ) {
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+        let _ = (&bounds, &window);
+
         match &self.source {
             #[cfg(target_os = "macos")]
             SurfaceSource::Surface(surface) => {
@@ -127,7 +131,11 @@ impl Element for Surface {
                 window.paint_surface(new_bounds, surface.clone());
             }
             #[cfg(target_os = "windows")]
-            SurfaceSource::BgraPixels { data, width, height } => {
+            SurfaceSource::BgraPixels {
+                data,
+                width,
+                height,
+            } => {
                 let size = crate::size((*width).into(), (*height).into());
                 let new_bounds = self.object_fit.get_bounds(bounds, size);
                 window.paint_surface_rgba(new_bounds, data.clone(), *width, *height);

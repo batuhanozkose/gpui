@@ -2,10 +2,12 @@ use refineable::Refineable as _;
 use std::rc::Rc;
 
 use crate::platform::native_controls::{ButtonConfig, NativeControlState};
+#[cfg(target_os = "windows")]
+use crate::{font, point, Hsla, TextAlign, TextRun};
 use crate::{
-    font, point, px, AbsoluteLength, App, Bounds, ClickEvent, DefiniteLength, Element, ElementId,
-    GlobalElementId, Hsla, InspectorElementId, IntoElement, LayoutId, Length, Pixels, SharedString,
-    Style, StyleRefinement, Styled, TextAlign, TextRun, Window,
+    px, AbsoluteLength, App, Bounds, ClickEvent, DefiniteLength, Element, ElementId,
+    GlobalElementId, InspectorElementId, IntoElement, LayoutId, Length, Pixels, SharedString,
+    Style, StyleRefinement, Styled, Window,
 };
 
 use super::native_button::{NativeButtonStyle, NativeButtonTint};
@@ -147,38 +149,40 @@ impl NativeIconButton {
 fn sf_symbol_to_segoe_fluent(sf_symbol: &str) -> char {
     match sf_symbol {
         // Navigation
-        "globe" => '\u{E774}',          // Globe
-        "folder" => '\u{E8B7}',         // FolderOpen
-        "plus" => '\u{E710}',           // Add
-        "xmark" => '\u{E8BB}',          // Cancel / Close
-        "xmark.circle" => '\u{E946}',   // StatusCircleErrorX (filled circle with X)
+        "globe" => '\u{E774}',        // Globe
+        "folder" => '\u{E8B7}',       // FolderOpen
+        "plus" => '\u{E710}',         // Add
+        "xmark" => '\u{E8BB}',        // Cancel / Close
+        "xmark.circle" => '\u{E946}', // StatusCircleErrorX (filled circle with X)
 
         // Arrows & navigation
-        "arrow.clockwise" => '\u{E72C}',           // Refresh
+        "arrow.clockwise" => '\u{E72C}',             // Refresh
         "arrow.triangle.2.circlepath" => '\u{E8EE}', // RepeatAll
-        "chevron.left" => '\u{E76B}',              // Back
-        "chevron.right" => '\u{E76C}',             // Forward
-        "chevron.up" => '\u{E70E}',                // ChevronUp
-        "chevron.down" => '\u{E70D}',              // ChevronDown
-        "arrow.down.circle" => '\u{E74D}',         // Download
+        "chevron.left" => '\u{E76B}',                // Back
+        "chevron.right" => '\u{E76C}',               // Forward
+        "chevron.up" => '\u{E70E}',                  // ChevronUp
+        "chevron.down" => '\u{E70D}',                // ChevronDown
+        "arrow.down.circle" => '\u{E896}',           // Download
 
         // Actions
-        "trash" => '\u{E74D}',          // Delete
+        "trash" => '\u{E74D}',           // Delete
         "magnifyingglass" => '\u{E721}', // Search
-        "sidebar.left" => '\u{E700}',   // GlobalNavButton
-        "book" => '\u{E7BE}',           // ReadingMode
-        "star" => '\u{E734}',           // FavoriteStar
-        "star.fill" => '\u{E735}',      // FavoriteStarFill
-        "pin" => '\u{E840}',            // Pinned
-        "pin.fill" => '\u{E840}',       // Pinned (same, no filled variant)
+        "sparkles" => '\u{E734}',        // FavoriteStar
+        "sidebar.left" => '\u{E700}',    // GlobalNavButton
+        "book" => '\u{E7BE}',            // ReadingMode
+        "star" => '\u{E734}',            // FavoriteStar
+        "star.fill" => '\u{E735}',       // FavoriteStarFill
+        "pin" => '\u{E840}',             // Pinned
+        "pin.fill" => '\u{E840}',        // Pinned (same, no filled variant)
 
         // Media & misc
-        "play" => '\u{E768}',           // Play
-        "pause" => '\u{E769}',          // Pause
-        "stop" => '\u{E71A}',           // Stop
-        "gear" => '\u{E713}',           // Settings
-        "ellipsis" => '\u{E712}',       // More
-        "info.circle" => '\u{E946}',    // Info
+        "play" => '\u{E768}',                     // Play
+        "pause" => '\u{E769}',                    // Pause
+        "stop" => '\u{E71A}',                     // Stop
+        "stop.fill" => '\u{E71A}',                // Stop
+        "gear" => '\u{E713}',                     // Settings
+        "ellipsis" => '\u{E712}',                 // More
+        "info.circle" => '\u{E946}',              // Info
         "exclamationmark.triangle" => '\u{E7BA}', // Warning
 
         // Fallback: "More" icon for any unmapped symbol
@@ -249,7 +253,7 @@ impl Element for NativeIconButton {
         _request_layout: &mut Self::RequestLayoutState,
         _prepaint: &mut Self::PrepaintState,
         window: &mut Window,
-        cx: &mut App,
+        _cx: &mut App,
     ) {
         let parent = window.raw_native_view_ptr();
 
@@ -257,7 +261,7 @@ impl Element for NativeIconButton {
         // with Segoe Fluent Icons font mapping
         if parent.is_null() {
             #[cfg(target_os = "windows")]
-            self.paint_windows_icon_fallback(bounds, window, cx);
+            self.paint_windows_icon_fallback(bounds, window, _cx);
             return;
         }
 
