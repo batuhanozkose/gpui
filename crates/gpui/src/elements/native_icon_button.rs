@@ -185,6 +185,10 @@ fn sf_symbol_to_segoe_fluent(sf_symbol: &str) -> char {
         "info.circle" => '\u{E946}',              // Info
         "exclamationmark.triangle" => '\u{E7BA}', // Warning
 
+        // Document & terminal
+        "doc.text" => '\u{E8A5}',  // Document
+        "terminal" => '\u{E756}',  // CommandPrompt
+
         // Fallback: "More" icon for any unmapped symbol
         _ => '\u{E712}',
     }
