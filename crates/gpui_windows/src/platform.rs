@@ -95,21 +95,43 @@ impl WindowsPlatformState {
 
 impl WindowsPlatform {
     pub fn new(headless: bool) -> Result<Self> {
+        fn _trace(msg: &str) {
+            if let Ok(exe) = std::env::current_exe() {
+                if let Some(dir) = exe.parent() {
+                    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true)
+                        .open(dir.join("Glass_startup.log")) {
+                        use std::io::Write;
+                        let _ = writeln!(f, "[{:?}] [WindowsPlatform::new] {}", std::time::SystemTime::now(), msg);
+                    }
+                }
+            }
+        }
+
+        _trace(&format!("begin. headless={}", headless));
+
+        _trace(">> OleInitialize...");
         unsafe {
             OleInitialize(None).context("unable to initialize Windows OLE")?;
         }
+        _trace("<< OleInitialize OK");
+
         let (directx_devices, text_system, direct_write_text_system) = if !headless {
+            _trace(">> DirectXDevices::new()...");
             let devices = DirectXDevices::new().context("Creating DirectX devices")?;
+            _trace("<< DirectXDevices OK");
+            _trace(">> DirectWriteTextSystem::new()...");
             let dw_text_system = Arc::new(
                 DirectWriteTextSystem::new(&devices)
                     .context("Error creating DirectWriteTextSystem")?,
             );
+            _trace("<< DirectWriteTextSystem OK");
             (
                 Some(devices),
                 dw_text_system.clone() as Arc<dyn PlatformTextSystem>,
                 Some(dw_text_system),
             )
         } else {
+            _trace("headless mode — skipping DirectX/DirectWrite");
             (
                 None,
                 Arc::new(gpui::NoopTextSystem::new()) as Arc<dyn PlatformTextSystem>,
@@ -117,6 +139,7 @@ impl WindowsPlatform {
             )
         };
 
+        _trace(">> CreateWindowExW (message-only window)...");
         let (main_sender, main_receiver) = PriorityQueueReceiver::new();
         let validation_number = if usize::BITS == 64 {
             rand::random::<u64>() as usize
@@ -151,6 +174,7 @@ impl WindowsPlatform {
                 Some(&raw const context as *const _),
             )
         };
+        _trace("<< CreateWindowExW returned");
         let inner = context
             .inner
             .take()
@@ -160,6 +184,7 @@ impl WindowsPlatform {
             .take()
             .context("CreateWindowExW did not run correctly")?;
         let handle = result?;
+        _trace("<< message-only window OK");
 
         let disable_direct_composition = std::env::var(DISABLE_DIRECT_COMPOSITION)
             .is_ok_and(|value| value == "true" || value == "1");
@@ -180,6 +205,7 @@ impl WindowsPlatform {
             HICON::default()
         };
 
+        _trace("WindowsPlatform::new() complete — returning Ok");
         Ok(Self {
             inner,
             handle,

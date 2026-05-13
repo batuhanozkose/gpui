@@ -40,10 +40,25 @@ pub fn current_platform(headless: bool) -> Rc<dyn Platform> {
 
     #[cfg(target_os = "windows")]
     {
-        Rc::new(
-            gpui_windows::WindowsPlatform::new(headless)
-                .expect("failed to initialize Windows platform"),
-        )
+        // Trace to file since this is a common crash point (D3D init, headless, etc.)
+        fn _trace(msg: &str) {
+            if let Ok(exe) = std::env::current_exe() {
+                if let Some(dir) = exe.parent() {
+                    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true)
+                        .open(dir.join("Glass_startup.log")) {
+                        use std::io::Write;
+                        let _ = writeln!(f, "[{:?}] [gpui_platform] {}", std::time::SystemTime::now(), msg);
+                    }
+                }
+            }
+        }
+        _trace(">> WindowsPlatform::new()...");
+        let platform = gpui_windows::WindowsPlatform::new(headless);
+        match &platform {
+            Ok(_) => _trace("<< WindowsPlatform::new() OK"),
+            Err(e) => _trace(&format!("<< WindowsPlatform::new() FAILED: {}", e)),
+        }
+        Rc::new(platform.expect("failed to initialize Windows platform"))
     }
 
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
